@@ -1,0 +1,39 @@
+# Phase 1, 2, & 3 — Ingestion, Hybrid Retrieval & Agentic Reasoning Loop
+
+# PDF loading (in-memory, no disk writes for the main file)
+pypdf>=4.0.0
+pdfplumber>=0.11.0
+
+# Table extraction from PDFs
+camelot-py[cv]>=0.11.0
+
+# Used internally by camelot table-to-markdown conversion
+tabulate>=0.9.0
+
+# LangChain core ecosystem
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-text-splitters>=0.3.0
+langchain-huggingface>=0.1.0
+langchain-classic>=1.0.0   # provides EnsembleRetriever & ParentDocumentRetriever
+
+# Vector database (in-memory ephemeral ChromaDB, no disk persistence)
+chromadb>=0.5.0
+langchain-chroma>=0.1.0
+
+# Sentence embedding model (runs locally on CPU)
+sentence-transformers>=2.2.0
+
+# BM25 keyword retrieval
+rank-bm25>=0.2.2
+
+# Phase 3 Agentic Reasoning Loop (LangGraph StateGraph)
+langgraph>=1.0.0
+
+# Direct LLM SDK (Groq or OpenAI compatible, used across grader, rewriter, generator, hallucination checker)
+openai>=1.0.0
+groq>=0.9.0
+
+# Testing
+pytest>=7.0.0

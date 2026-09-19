@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Intelligence Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar / Document Panel -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">📄</span>
+        <h2>Document Assistant</h2>
+      </div>
+
+      <section class="panel-section">
+        <h3>Upload Document</h3>
+        <p class="subtitle">Upload a PDF contract or report to index into RAM.</p>
+        
+        <form id="upload-form" class="upload-form">
+          <label for="pdf-file" class="file-label" id="file-label-text">
+            Choose PDF...
+          </label>
+          <input type="file" id="pdf-file" accept=".pdf" style="display: none;" />
+          <button type="submit" id="upload-btn" class="btn btn-primary" disabled>
+            Upload & Index
+          </button>
+        </form>
+        <div id="upload-status" class="status-msg"></div>
+      </section>
+
+      <!-- Document Status Panel (Part 8) -->
+      <section class="panel-section doc-panel">
+        <h3>DOCUMENT STATUS</h3>
+        <div id="doc-card" class="doc-card empty">
+          <div class="doc-icon">○</div>
+          <div class="doc-info">
+            <strong id="doc-name">No document uploaded</strong>
+            <span id="doc-sub">Upload a PDF to begin.</span>
+          </div>
+        </div>
+        <div id="doc-meta" class="doc-meta" style="display: none;">
+          <div class="meta-item">
+            <span>Pages</span>
+            <strong id="meta-pages">0</strong>
+          </div>
+          <div class="meta-item">
+            <span>Chunks</span>
+            <strong id="meta-chunks">0</strong>
+          </div>
+          <div class="meta-item">
+            <span>Storage</span>
+            <strong class="badge-ephemeral">In-Memory RAM</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-section loop-legend">
+        <h3>RAG LOOP INDICATORS</h3>
+        <ul class="legend-list">
+          <li><span class="dot status-success"></span> Completed / Grounded</li>
+          <li><span class="dot status-warning"></span> Reformulated / Low-Conf</li>
+          <li><span class="dot status-error"></span> Out of Scope / Refused</li>
+        </ul>
+      </section>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <main class="chat-workspace">
+      <header class="chat-header">
+        <div>
+          <h1>Interactive Document QA</h1>
+          <p>Answers are synthesized in natural language, strictly grounded with verified page citations.</p>
+        </div>
+      </header>
+
+      <!-- Messages Area (Part 7, 16) -->
+      <div class="chat-history" id="chat-history">
+        <div class="welcome-message">
+          <div class="welcome-icon">🔍</div>
+          <h3>Welcome to Document Intelligence Assistant</h3>
+          <p>Please upload a PDF document in the sidebar to start asking questions.</p>
+        </div>
+      </div>
+
+      <!-- Suggested Starter Questions (Part 4, 12) -->
+      <div id="suggestions-bar" class="suggestions-bar" style="display: none;">
+        <span class="sug-label">Suggestions:</span>
+        <div id="suggestions-container" class="suggestions-pills"></div>
+      </div>
+
+      <!-- Chat Input (Part 7) -->
+      <div class="chat-input-area">
+        <form id="chat-form" class="chat-form">
+          <input
+            type="text"
+            id="query-input"
+            placeholder="Ask a question about the document..."
+            autocomplete="off"
+            disabled
+          />
+          <button type="submit" id="send-btn" class="btn btn-primary" disabled>
+            Send
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

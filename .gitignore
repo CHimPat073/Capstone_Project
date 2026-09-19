@@ -1,0 +1,87 @@
+# Environment variables, keys & secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Python bytecode, cache & runtime files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing, coverage & linting
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Databases, ephemeral storage & vectors (zero-disk persistence guarantee)
+*.sqlite
+*.sqlite3
+*.db
+chroma/
+chroma_db/
+.chroma/
+
+# Logs & temporary files
+*.log
+logs/
+temp/
+tmp/
+
+# Operating System artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Streamlit & UI cache
+.streamlit/
