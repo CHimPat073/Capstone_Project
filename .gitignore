@@ -85,3 +85,13 @@ desktop.ini
 
 # Streamlit & UI cache
 .streamlit/
+
+# Generated demo and architecture artifacts (keep README-linked deliverables)
+brag-output*/
+!brag-output-2026-09-28-225024/
+brag-output-2026-09-28-225024/*
+!brag-output-2026-09-28-225024/brag.mp4
+.archify/*/
+!.archify/architecture-document-intelligence-20261003-220841/
+.archify/architecture-document-intelligence-20261003-220841/*
+!.archify/architecture-document-intelligence-20261003-220841/document-intelligence.html

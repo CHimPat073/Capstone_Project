@@ -90,6 +90,13 @@ No database. No persistent storage. Upload a PDF -> build an in-memory hybrid in
 
 ---
 
+## Project Visualizations
+
+- [Demo video (brag.mp4)](brag-output-2026-09-28-225024/brag.mp4)
+- [Interactive runtime architecture flow (Archify)](.archify/architecture-document-intelligence-20261003-220841/document-intelligence.html)
+
+---
+
 ## Technical Viva & Interview FAQ
 
 ### 1. Why ChromaDB?
