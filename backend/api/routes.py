@@ -9,11 +9,13 @@ from backend.models.schemas import (
     DocumentStatus,
     DocumentUploadResponse,
     HealthResponse,
+    HumanFeedback,
 )
 from backend.services.chat_service import chat_service
 from backend.services.document_service import document_service
 
 router = APIRouter(prefix="/api")
+human_feedback = []
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -81,3 +83,21 @@ def chat(request: ChatRequest):
             status_code=500,
             detail=f"An error occurred during chat processing: {str(exc)}",
         )
+
+
+@router.post("/evaluation/feedback")
+def submit_human_feedback(feedback: HumanFeedback):
+    """Collect explicit answer ratings in process memory for human evaluation."""
+    human_feedback.append(feedback.dict())
+    return {"accepted": True, "count": len(human_feedback)}
+
+
+@router.get("/evaluation/summary")
+def human_evaluation_summary():
+    """Return aggregate feedback without retaining uploaded document content."""
+    ratings = [row["rating"] for row in human_feedback]
+    return {
+        "responses": len(ratings),
+        "average_rating": round(sum(ratings) / len(ratings), 2) if ratings else None,
+        "helpful_rate": round(sum(row.get("helpful") is True for row in human_feedback) / len(ratings), 3) if ratings else None,
+    }

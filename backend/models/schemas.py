@@ -50,6 +50,7 @@ class LoopStatus(BaseModel):
     grounding_passed: bool = True
     original_query: Optional[str] = None
     resolved_query: Optional[str] = None
+    route_strategy: Optional[str] = None
 
 
 class EvalMetrics(BaseModel):

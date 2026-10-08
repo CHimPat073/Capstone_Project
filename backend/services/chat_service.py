@@ -4,9 +4,11 @@ Reuses existing app.reasoning.agent_graph and app.reasoning.llm_client modules.
 """
 
 import re
+import uuid
 from typing import Any, Dict, List, Optional
 
 from app.reasoning.agent_graph import answer
+from app.reasoning.query_router import route_query
 from app.evaluation.ragas_evaluator import calculate_faithfulness, calculate_answer_relevancy
 from backend.services.document_service import document_service
 from backend.models.schemas import ChatResponse, Citation, EvalMetrics, LoopStatus, Source
@@ -119,6 +121,7 @@ class ChatService:
 
         # Execute existing LangGraph reasoning loop with current-session conversation context
         recent_history = document_service.conversation_history[-4:]
+        route = route_query(q_clean)
         result = answer(
             index,
             q_clean,
@@ -136,7 +139,8 @@ class ChatService:
 
         # Map citations
         citations = [
-            Citation(page=c.get("page", 1), text=c.get("text"))
+            Citation(page=c.get("page", 1), text=c.get("text"), bbox=c.get("bbox"),
+                     page_width=c.get("page_width"), page_height=c.get("page_height"))
             for c in raw_citations
         ]
 
@@ -158,6 +162,7 @@ class ChatService:
             grounding_passed=is_grounded,
             original_query=q_clean,
             resolved_query=resolved_query,
+            route_strategy=route.strategy,
         )
 
         # Detect out-of-domain refusal from LLM/agent
@@ -249,6 +254,7 @@ class ChatService:
             loop=loop_status,
             eval_metrics=eval_metrics,
             suggestions=suggestions,
+            evaluation_id=str(uuid.uuid4()),
         )
 
 

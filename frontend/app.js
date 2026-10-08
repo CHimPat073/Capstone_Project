@@ -166,13 +166,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Card styling based on status (Part 11, 12, 13, 14)
     if (data.status === "out_of_domain") {
       bubble.classList.add("card-ood");
-      bubble.innerHTML = `<strong>⚠ Outside Document Scope</strong><br><br>${data.answer}`;
+      addStatusMessage(bubble, "⚠ Outside Document Scope", data.answer);
     } else if (data.status === "needs_clarification") {
       bubble.classList.add("card-clarify");
-      bubble.innerHTML = `<strong>? Clarification Needed</strong><br><br>${data.answer}`;
+      addStatusMessage(bubble, "? Clarification Needed", data.answer);
     } else if (data.status === "grounding_failed") {
       bubble.classList.add("card-ood");
-      bubble.innerHTML = `<strong>⚠ Grounding Verification Failed</strong><br><br>${data.answer}`;
+      addStatusMessage(bubble, "⚠ Grounding Verification Failed", data.answer);
     } else {
       bubble.innerHTML = formatMarkdown(data.answer);
     }
@@ -184,6 +184,41 @@ document.addEventListener("DOMContentLoaded", () => {
       const pages = data.citations.map((c) => `Page ${c.page}`).join(", ");
       citTag.textContent = `✓ Verified Citations: ${pages}`;
       bubble.appendChild(citTag);
+      data.citations.filter((c) => Array.isArray(c.bbox) && c.bbox.length === 4).forEach((citation) => {
+        const box = document.createElement("div");
+        box.className = "citation-bbox";
+        box.textContent = `Page ${citation.page} evidence area: x=${citation.bbox[0]}, y=${citation.bbox[1]}, width=${(citation.bbox[2] - citation.bbox[0]).toFixed(1)}, height=${(citation.bbox[3] - citation.bbox[1]).toFixed(1)} pt`;
+        bubble.appendChild(box);
+      });
+    }
+
+    if (data.evaluation_id) {
+      const feedback = document.createElement("div");
+      feedback.className = "human-feedback";
+      const label = document.createElement("label");
+      label.textContent = "Rate this answer (1–5): ";
+      const rating = document.createElement("select");
+      rating.setAttribute("aria-label", "Answer rating from 1 to 5");
+      rating.innerHTML = '<option value="">Choose</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>';
+      const submit = document.createElement("button");
+      submit.type = "button";
+      submit.textContent = "Submit rating";
+      const status = document.createElement("span");
+      submit.addEventListener("click", async () => {
+        if (!rating.value) return;
+        submit.disabled = true;
+        try {
+          const response = await fetch("/api/evaluation/feedback", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ evaluation_id: data.evaluation_id, rating: Number(rating.value) }),
+          });
+          if (!response.ok) throw new Error("Rating could not be saved");
+          status.textContent = "Thanks for the rating.";
+        } catch (error) { status.textContent = error.message; submit.disabled = false; }
+      });
+      label.appendChild(rating);
+      feedback.append(label, submit, status);
+      bubble.appendChild(feedback);
     }
 
     // Evaluation & Relevance Metrics Card (Part 16)
@@ -224,6 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ragCard.innerHTML = `
       <div class="rag-process-title">RAG REASONING PIPELINE</div>
       <div class="rag-steps">
+        <span class="step-badge status-success">↗ ${data.loop.route_strategy || "semantic_hybrid"}</span>
         <span class="step-badge ${data.loop.query_relevant ? "status-success" : "status-error"}">
           ${data.loop.query_relevant ? "✓ Query Understood" : "✗ Query Unclear"}
         </span>
@@ -243,7 +279,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (data.loop.rewrites > 0 && data.loop.resolved_query) {
       const refBox = document.createElement("div");
       refBox.className = "reformulate-box";
-      refBox.innerHTML = `<strong>↻ Query Reformulated for Legal Retrieval:</strong><br>"${data.loop.resolved_query}"`;
+      const refTitle = document.createElement("strong");
+      refTitle.textContent = "↻ Query Reformulated for Legal Retrieval:";
+      refBox.append(refTitle, document.createElement("br"), document.createTextNode(`"${data.loop.resolved_query}"`));
       ragCard.appendChild(refBox);
     }
 
@@ -262,10 +300,13 @@ document.addEventListener("DOMContentLoaded", () => {
       data.sources.forEach((src, idx) => {
         const item = document.createElement("div");
         item.className = "source-item";
-        item.innerHTML = `
-          <span class="source-page">Source ${idx + 1} — Page ${src.page} (${src.chunk_type || "text"})</span>
-          <span class="source-snippet">"${src.text}"</span>
-        `;
+        const page = document.createElement("span");
+        page.className = "source-page";
+        page.textContent = `Source ${idx + 1} — Page ${src.page} (${src.chunk_type || "text"})`;
+        const snippet = document.createElement("span");
+        snippet.className = "source-snippet";
+        snippet.textContent = `"${src.text}"`;
+        item.append(page, snippet);
         list.appendChild(item);
       });
 
@@ -323,10 +364,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatMarkdown(text) {
     if (!text) return "";
-    return text
+    return text.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]))
       .replace(/\n\n/g, "<br><br>")
       .replace(/\n- /g, "<br>• ")
       .replace(/\n/g, "<br>")
       .replace(/\[Page\s+(\d+)\]/g, '<strong style="color: #10b981;">[Page $1]</strong>');
+  }
+
+  function addStatusMessage(container, title, message) {
+    const heading = document.createElement("strong");
+    heading.textContent = title;
+    const body = document.createElement("div");
+    body.textContent = message || "";
+    container.append(heading, document.createElement("br"), document.createElement("br"), body);
   }
 });
