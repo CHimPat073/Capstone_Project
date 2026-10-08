@@ -1,0 +1,10 @@
+.git
+.env
+.venv
+venv
+__pycache__
+.pytest_cache
+*.py[cod]
+evaluation/results.csv
+evaluation/summary.json
+artifacts

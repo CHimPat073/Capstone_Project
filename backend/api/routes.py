@@ -37,7 +37,7 @@ async def upload_document(file: UploadFile = File(...)):
     Accepts PDF via multipart/form-data, builds ephemeral index in RAM,
     resets previous document and chat session.
     """
-    if not file.filename.lower().endswith(".pdf"):
+    if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(
             status_code=400,
             detail="Invalid file format. Only PDF files (.pdf) are supported.",

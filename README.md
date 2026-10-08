@@ -172,6 +172,8 @@ capstone/
 pip install -r requirements.txt
 ```
 
+The Python 3.11 environment is recommended. The local sentence embedding model is downloaded on first indexing. Cross-encoder reranking is optional and disabled by default; enable it with `RERANKER_ENABLED=true` (and optionally set `RERANKER_MODEL`).
+
 ### 2. Launch the Production FastAPI + HTML Frontend (All-in-One Server)
 ```bash
 uvicorn backend.main:app --reload
@@ -194,6 +196,33 @@ Computes Hit@5, Faithfulness, Context Precision, Context Recall, Answer Relevanc
 ```bash
 pytest tests/ -v
 ```
+
+### Run with Docker
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+The API and web UI are available at `http://localhost:8000`. Keep secrets in `.env`; do not commit it.
+
+### Retrieval and reasoning options
+
+- A local cross-encoder reranks hybrid retrieval candidates when `RERANKER_ENABLED=true`.
+- The query router selects candidate depth and decomposes comparison questions into up to three searches. Results are merged before answer generation.
+- PDF citations include page dimensions and an evidence bounding box in PDF points when pdfplumber can extract layout. These boxes are approximate word-match regions, not a rendered highlight overlay.
+- `POST /api/evaluation/feedback` accepts `{ "evaluation_id": "…", "rating": 1, "helpful": false, "comment": "…" }`. `GET /api/evaluation/summary` reports in-memory aggregate ratings. Feedback is cleared when the server restarts.
+
+### Optional QLoRA fine-tuning
+
+QLoRA training requires a compatible CUDA GPU and is separate from normal app installation:
+
+```bash
+pip install -r requirements-training.txt
+python scripts/train_qlora.py --dataset data/instructions.jsonl --model mistralai/Mistral-7B-Instruct-v0.3 --output artifacts/qlora-adapter
+```
+
+The JSONL dataset needs a `text` or `messages` field per row. Training writes an adapter and tokenizer files to the output directory; it does not replace the inference model automatically. Use data you have permission to train on and keep contract data private.
 
 ---
 

@@ -57,6 +57,7 @@ coverage.xml
 chroma/
 chroma_db/
 .chroma/
+artifacts/
 
 # Logs & temporary files
 *.log

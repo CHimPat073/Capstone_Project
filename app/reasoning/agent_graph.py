@@ -27,7 +27,7 @@ from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
 from app.retrieval.hybrid_retriever import retrieve
-from app.reasoning.query_router import route_query
+from app.reasoning.query_router import decompose_query, route_query
 from app.reasoning.llm_client import (
     LLMClient,
     GRADER_SYSTEM_PROMPT,
@@ -133,10 +133,8 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None):
         route = route_query(query)
         queries = [query]
         if route.requires_multiple_hops:
-            # A lightweight decomposition keeps comparisons grounded in evidence
-            # from each part of the question, without another model dependency.
-            parts = re.split(r"\b(?:and|versus|vs\.?|compared with|between)\b", query, flags=re.I)
-            queries = [part.strip(" ?.,") for part in parts if len(part.strip()) > 8][:3] or [query]
+            # Search each side of a comparison, plus the full question for links.
+            queries = decompose_query(query)
         chunks = []
         seen = set()
         for subquery in queries:

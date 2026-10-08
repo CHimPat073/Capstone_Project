@@ -24,3 +24,24 @@ def route_query(question: str) -> QueryRoute:
     if _KEYWORD_HEAVY.search(text):
         return QueryRoute("lexical_hybrid", "The question names a clause, section, or exact term.", 8)
     return QueryRoute("semantic_hybrid", "Use the standard dense and lexical hybrid search.", 5)
+
+
+def decompose_query(question: str) -> list[str]:
+    """Return focused retrieval subqueries for common two-part questions."""
+    text = (question or "").strip()
+    patterns = (
+        r"how does (.+?) affect (.+)",
+        r"between (.+?) and (.+)",
+        r"(?:compare|relationship between) (.+?) (?:and|with|to|versus|vs\.?) (.+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if match:
+            parts = [part.strip(" ?.,") for part in match.groups()]
+            return [part for part in parts if len(part) >= 3][:2] + [text]
+
+    parts = [part.strip(" ?.,") for part in re.split(
+        r"\b(?:and|versus|vs\.?|compared with)\b", text, flags=re.I
+    )]
+    focused = [part for part in parts if len(part) >= 3]
+    return focused[:2] + [text] if len(focused) > 1 else [text]
