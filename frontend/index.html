@@ -3,115 +3,120 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Document Intelligence Assistant</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#f5f4f0" />
+  <title>Folio — Document workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=folio-20261008-2" />
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Sidebar / Document Panel -->
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-icon">📄</span>
-        <h2>Document Assistant</h2>
-      </div>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Document workspace">
+      <a class="brand" href="/" aria-label="Folio home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><path d="M8 4.75h10l6 6v16.5H8V4.75Z" stroke="currentColor" stroke-width="1.6"/><path d="M18 4.75v6h6M12 16h8M12 20h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="brand-name">folio<span class="brand-period">.</span></span>
+      </a>
 
-      <section class="panel-section">
-        <h3>Upload Document</h3>
-        <p class="subtitle">Upload a PDF contract or report to index into RAM.</p>
-        
-        <form id="upload-form" class="upload-form">
-          <label for="pdf-file" class="file-label" id="file-label-text">
-            Choose PDF...
-          </label>
-          <input type="file" id="pdf-file" accept=".pdf" style="display: none;" />
-          <button type="submit" id="upload-btn" class="btn btn-primary" disabled>
-            Upload & Index
-          </button>
-        </form>
-        <div id="upload-status" class="status-msg"></div>
-      </section>
+      <div class="workspace-label">DOCUMENT WORKSPACE</div>
 
-      <!-- Document Status Panel (Part 8) -->
-      <section class="panel-section doc-panel">
-        <h3>DOCUMENT STATUS</h3>
+      <section class="document-section" aria-labelledby="document-heading">
+        <div class="section-heading">
+          <h2 id="document-heading">Your document</h2>
+          <span class="live-indicator" title="Session storage is active"></span>
+        </div>
+
         <div id="doc-card" class="doc-card empty">
-          <div class="doc-icon">○</div>
-          <div class="doc-info">
-            <strong id="doc-name">No document uploaded</strong>
-            <span id="doc-sub">Upload a PDF to begin.</span>
-          </div>
+          <span class="doc-file-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6.75 3.75h7l4.5 4.5v12H6.75v-16.5Z" stroke="currentColor" stroke-width="1.4"/><path d="M13.75 3.75v4.5h4.5M9.5 13h6M9.5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </span>
+          <span class="doc-info">
+            <strong id="doc-name">No document yet</strong>
+            <span id="doc-sub">Add a PDF to get started</span>
+          </span>
         </div>
+
         <div id="doc-meta" class="doc-meta" style="display: none;">
-          <div class="meta-item">
-            <span>Pages</span>
-            <strong id="meta-pages">0</strong>
-          </div>
-          <div class="meta-item">
-            <span>Chunks</span>
-            <strong id="meta-chunks">0</strong>
-          </div>
-          <div class="meta-item">
-            <span>Storage</span>
-            <strong class="badge-ephemeral">In-Memory RAM</strong>
-          </div>
+          <div class="meta-row"><span>Pages</span><strong id="meta-pages">0</strong></div>
+          <div class="meta-row"><span>Text segments</span><strong id="meta-chunks">0</strong></div>
         </div>
+
+        <form id="upload-form" class="upload-form">
+          <label for="pdf-file" class="upload-dropzone" id="upload-dropzone" tabindex="0">
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5V4.75m0 0L8.25 8.5M12 4.75 15.75 8.5M5.75 14.75v4.5h12.5v-4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="upload-copy"><strong id="file-label-text">Choose a PDF</strong><span>or drop it here · up to 20 MB</span></span>
+            <span class="upload-browse">Browse</span>
+          </label>
+          <input type="file" id="pdf-file" accept="application/pdf,.pdf" />
+          <button type="submit" id="upload-btn" class="button button-primary" disabled>
+            <span>Index document</span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4.5 10h11m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <p id="upload-status" class="status-msg" aria-live="polite"></p>
+        </form>
       </section>
 
-      <section class="panel-section loop-legend">
-        <h3>RAG LOOP INDICATORS</h3>
-        <ul class="legend-list">
-          <li><span class="dot status-success"></span> Completed / Grounded</li>
-          <li><span class="dot status-warning"></span> Reformulated / Low-Conf</li>
-          <li><span class="dot status-error"></span> Out of Scope / Refused</li>
-        </ul>
+      <div class="sidebar-spacer"></div>
+
+      <section class="privacy-note" aria-label="Privacy information">
+        <span class="privacy-icon" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 2.75 16 5v4.5c0 3.55-2.52 6.25-6 7.75-3.48-1.5-6-4.2-6-7.75V5l6-2.25Z" stroke="currentColor" stroke-width="1.35"/><path d="m7.5 9.75 1.65 1.65 3.4-3.55" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span><strong>Private by design</strong><small>Your file stays in this session and is cleared when it ends.</small></span>
       </section>
+      <div class="sidebar-foot">FOLIO <span>·</span> DOCUMENT INTELLIGENCE</div>
     </aside>
 
-    <!-- Main Chat Workspace -->
-    <main class="chat-workspace">
-      <header class="chat-header">
-        <div>
-          <h1>Interactive Document QA</h1>
-          <p>Answers are synthesized in natural language, strictly grounded with verified page citations.</p>
-        </div>
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Workspace</span><span class="crumb-divider">/</span><strong id="workspace-title">New conversation</strong></div>
+        <div class="topbar-meta"><span class="session-dot"></span> Session only <span class="topbar-divider"></span><span class="topbar-shortcut">PDF · Q&amp;A</span></div>
       </header>
 
-      <!-- Messages Area (Part 7, 16) -->
-      <div class="chat-history" id="chat-history">
-        <div class="welcome-message">
-          <div class="welcome-icon">🔍</div>
-          <h3>Welcome to Document Intelligence Assistant</h3>
-          <p>Please upload a PDF document in the sidebar to start asking questions.</p>
+      <section class="conversation" aria-label="Document conversation">
+        <div class="conversation-heading">
+          <div class="heading-kicker"><span class="heading-line"></span> ASK YOUR DOCUMENT</div>
+          <h1>Make sense of<br /><em>the fine print.</em></h1>
+          <p class="heading-description">Ask a question in plain language. Folio finds the relevant passages and shows you where each answer comes from.</p>
         </div>
-      </div>
 
-      <!-- Suggested Starter Questions (Part 4, 12) -->
-      <div id="suggestions-bar" class="suggestions-bar" style="display: none;">
-        <span class="sug-label">Suggestions:</span>
-        <div id="suggestions-container" class="suggestions-pills"></div>
-      </div>
+        <div class="chat-history" id="chat-history" aria-live="polite">
+          <div class="welcome-message" id="welcome-message">
+            <span class="welcome-rule"></span>
+            <div class="welcome-copy">
+              <span class="welcome-eyebrow">A CLEARER WAY THROUGH DOCUMENTS</span>
+              <h2>Start with a question.</h2>
+              <p>Upload a contract, policy, or report. We’ll help you find the details that matter, with page references to check the source.</p>
+              <div class="welcome-points">
+                <span><i>01</i> Upload a PDF</span><span><i>02</i> Ask naturally</span><span><i>03</i> Check the source</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <!-- Chat Input (Part 7) -->
-      <div class="chat-input-area">
-        <form id="chat-form" class="chat-form">
-          <input
-            type="text"
-            id="query-input"
-            placeholder="Ask a question about the document..."
-            autocomplete="off"
-            disabled
-          />
-          <button type="submit" id="send-btn" class="btn btn-primary" disabled>
-            Send
-          </button>
-        </form>
-      </div>
+        <div id="suggestions-bar" class="suggestions-bar" style="display: none;">
+          <span class="suggestions-label">You could ask</span>
+          <div id="suggestions-container" class="suggestions-pills"></div>
+        </div>
+
+        <div class="composer-wrap">
+          <form id="chat-form" class="chat-form">
+            <label class="sr-only" for="query-input">Ask a question about your document</label>
+            <input type="text" id="query-input" placeholder="Ask about a clause, date, or obligation…" autocomplete="off" disabled />
+            <button type="submit" id="send-btn" class="send-button" aria-label="Send question" disabled>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m0 0-5-5m5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </form>
+          <div class="composer-foot"><span>Answers are grounded in your uploaded document.</span><span><kbd>↵</kbd> to send</span></div>
+        </div>
+      </section>
+      <footer class="main-footer"><span>Folio can make mistakes. Confirm important details against the source.</span><span>BUILT FOR CLOSE READING</span></footer>
     </main>
   </div>
-
-  <script src="app.js"></script>
+  <script src="app.js?v=folio-20261008-2"></script>
 </body>
 </html>

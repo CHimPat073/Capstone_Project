@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const fileLabel = document.getElementById("file-label-text");
   const uploadBtn = document.getElementById("upload-btn");
   const uploadStatus = document.getElementById("upload-status");
+  const dropzone = document.getElementById("upload-dropzone");
+  const workspaceTitle = document.getElementById("workspace-title");
 
   const docCard = document.getElementById("doc-card");
   const docName = document.getElementById("doc-name");
@@ -31,14 +33,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // File selection UI update
   fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0) {
-      fileLabel.textContent = fileInput.files[0].name;
-      uploadBtn.disabled = false;
-    } else {
-      fileLabel.textContent = "Choose PDF...";
-      uploadBtn.disabled = true;
+    reflectSelectedFile();
+  });
+
+  // The drop target mirrors the browse input and keeps the upload flow intact.
+  ["dragenter", "dragover"].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    dropzone.classList.add("is-dragover");
+  }));
+  ["dragleave", "drop"].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    dropzone.classList.remove("is-dragover");
+  }));
+  dropzone.addEventListener("drop", (event) => {
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    if (!file) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fileInput.files = transfer.files;
+    reflectSelectedFile();
+  });
+  dropzone.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      fileInput.click();
     }
   });
+
+  function reflectSelectedFile() {
+    const file = fileInput.files[0];
+    if (!file) {
+      fileLabel.textContent = "Choose a PDF";
+      uploadBtn.disabled = true;
+      return;
+    }
+    fileLabel.textContent = file.name;
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const withinLimit = file.size <= 20 * 1024 * 1024;
+    uploadBtn.disabled = !isPdf || !withinLimit;
+    uploadStatus.textContent = !isPdf ? "Choose a PDF file." : !withinLimit ? "This file is larger than 20 MB." : "Ready to index";
+    uploadStatus.style.color = isPdf && withinLimit ? "#5c7057" : "#a04f44";
+  }
 
   // Handle PDF upload
   uploadForm.addEventListener("submit", async (e) => {
@@ -46,6 +81,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!fileInput.files.length) return;
 
     const file = fileInput.files[0];
+    if (!file || file.size > 20 * 1024 * 1024) {
+      uploadStatus.textContent = "Choose a PDF smaller than 20 MB.";
+      uploadStatus.style.color = "#a04f44";
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
 
@@ -72,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Update UI state
       updateDocState(data.filename, data.pages, data.chunks);
+      workspaceTitle.textContent = data.filename;
       enableChat();
 
       // Show starter suggestions
@@ -334,12 +375,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateDocState(filename, pages, chunks) {
     docCard.classList.remove("empty");
     docCard.classList.add("active");
-    docCard.querySelector(".doc-icon").textContent = "✓";
+    docCard.querySelector(".doc-file-icon").classList.add("loaded");
     docName.textContent = filename;
-    docSub.textContent = "Ready for querying";
+    docSub.textContent = "Ready to explore";
     metaPages.textContent = pages;
     metaChunks.textContent = chunks;
     docMeta.style.display = "flex";
+    const welcome = document.getElementById("welcome-message");
+    if (welcome) {
+      welcome.querySelector("h2").textContent = "Your document is ready.";
+      welcome.querySelector("p").textContent = "Ask about a clause, date, or obligation. Folio will bring back the relevant passage and page reference.";
+    }
   }
 
   function enableChat() {
@@ -355,6 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.document_loaded) {
         updateDocState(data.filename, data.pages, data.chunks);
+        workspaceTitle.textContent = data.filename;
         enableChat();
       }
     } catch (e) {
