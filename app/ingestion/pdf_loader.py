@@ -7,6 +7,7 @@ metadata survives all the way to retrieval time.
 """
 
 import io
+import json
 import uuid
 from typing import List
 
@@ -47,6 +48,12 @@ def load_pdf(pdf_bytes: bytes, doc_id: str) -> List[Document]:
         raise ValueError("PDF has zero pages.")
 
     documents: List[Document] = []
+    try:
+        import pdfplumber
+        pdf_layout = pdfplumber.open(io.BytesIO(pdf_bytes))
+    except Exception:
+        pdfplumber = None
+        pdf_layout = None
 
     for page_index, page in enumerate(reader.pages):
         page_num = page_index + 1  # 1-based page numbers are easier to explain
@@ -63,6 +70,24 @@ def load_pdf(pdf_bytes: bytes, doc_id: str) -> List[Document]:
         # Rough token estimate: 1 token ≈ 4 characters (common heuristic)
         approx_tokens = len(text) // 4
 
+        # pdfplumber supplies word-level PDF coordinates for verifiable citations.
+        # Geometry is optional: malformed PDFs and missing pdfplumber still ingest.
+        bbox_words = []
+        page_width = float(page.mediabox.width)
+        page_height = float(page.mediabox.height)
+        try:
+            if pdf_layout is not None:
+                pl_page = pdf_layout.pages[page_index]
+                bbox_words = [
+                    {"text": word.get("text", ""), "x0": round(word["x0"], 2),
+                     "top": round(word["top"], 2), "x1": round(word["x1"], 2),
+                     "bottom": round(word["bottom"], 2)}
+                    for word in pl_page.extract_words()
+                ]
+                page_width, page_height = float(pl_page.width), float(pl_page.height)
+        except Exception:
+            pass
+
         doc = Document(
             page_content=text,
             metadata={
@@ -71,8 +96,13 @@ def load_pdf(pdf_bytes: bytes, doc_id: str) -> List[Document]:
                 "chunk_type": "text",
                 "parent_id": "",          # filled in during chunking
                 "token_count": approx_tokens,
+                "bbox_words_json": json.dumps(bbox_words),
+                "page_width": page_width,
+                "page_height": page_height,
             },
         )
         documents.append(doc)
 
+    if pdf_layout is not None:
+        pdf_layout.close()
     return documents

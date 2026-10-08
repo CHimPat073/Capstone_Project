@@ -32,6 +32,9 @@ class ChatRequest(BaseModel):
 class Citation(BaseModel):
     page: int
     text: Optional[str] = None
+    bbox: Optional[List[float]] = None
+    page_width: Optional[float] = None
+    page_height: Optional[float] = None
 
 
 class Source(BaseModel):
@@ -66,3 +69,11 @@ class ChatResponse(BaseModel):
     loop: LoopStatus
     eval_metrics: Optional[EvalMetrics] = None
     suggestions: List[str] = []
+    evaluation_id: Optional[str] = None
+
+
+class HumanFeedback(BaseModel):
+    evaluation_id: str = Field(..., min_length=1)
+    rating: int = Field(..., ge=1, le=5)
+    helpful: Optional[bool] = None
+    comment: Optional[str] = Field(default=None, max_length=2000)

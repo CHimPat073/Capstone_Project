@@ -22,6 +22,7 @@ Configuration:
 from typing import Any, List, Sequence
 from langchain_core.documents import Document
 from langchain_classic.retrievers import EnsembleRetriever
+from app.retrieval.reranker import rerank_documents
 
 
 def build_hybrid_retriever(
@@ -76,4 +77,6 @@ def retrieve(query: str, index: Any, k: int = 5) -> List[Document]:
     all_results = index.hybrid_retriever.invoke(query)
 
     # Slice to top-k
-    return all_results[:k]
+    candidate_count = min(len(all_results), max(k * 3, k))
+    reranker = getattr(index, "reranker", None)
+    return rerank_documents(query, all_results[:candidate_count], k, reranker=reranker)

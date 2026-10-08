@@ -20,12 +20,14 @@ RULES ENFORCED:
     - No persistent storage introduced
 """
 
+import json
 import re
 from typing import Any, Dict, List, Optional, TypedDict
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
 from app.retrieval.hybrid_retriever import retrieve
+from app.reasoning.query_router import route_query
 from app.reasoning.llm_client import (
     LLMClient,
     GRADER_SYSTEM_PROMPT,
@@ -128,7 +130,22 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None):
     def retrieve_node(state: AgentState) -> Dict[str, Any]:
         query = state["current_query"]
         print(f"\n[RETRIEVE] Query: \"{query}\"")
-        chunks = retrieve(query=query, index=index, k=5)
+        route = route_query(query)
+        queries = [query]
+        if route.requires_multiple_hops:
+            # A lightweight decomposition keeps comparisons grounded in evidence
+            # from each part of the question, without another model dependency.
+            parts = re.split(r"\b(?:and|versus|vs\.?|compared with|between)\b", query, flags=re.I)
+            queries = [part.strip(" ?.,") for part in parts if len(part.strip()) > 8][:3] or [query]
+        chunks = []
+        seen = set()
+        for subquery in queries:
+            for doc in retrieve(query=subquery, index=index, k=route.top_k):
+                key = doc.metadata.get("chunk_id") or (doc.metadata.get("page_num"), doc.page_content)
+                if key not in seen:
+                    seen.add(key)
+                    chunks.append(doc)
+        chunks = chunks[:max(route.top_k, 5)]
         print(f"[RETRIEVE] Fetched {len(chunks)} chunks.")
         return {"retrieved_chunks": chunks}
 
@@ -194,10 +211,33 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None):
         citations = response.get("citations", [])
 
         # Validate citations: check that cited pages actually exist in retrieved docs
-        retrieved_pages = {d.metadata.get("page_num") for d in state["retrieved_chunks"] if "page_num" in d.metadata}
-        validated_citations = [
-            c for c in citations if c.get("page") in retrieved_pages
-        ]
+        retrieved_pages = {int(d.metadata["page_num"]) for d in state["retrieved_chunks"]
+                           if str(d.metadata.get("page_num", "")).isdigit()}
+        validated_citations = []
+        for citation in citations if isinstance(citations, list) else []:
+            if not isinstance(citation, dict):
+                continue
+            try:
+                citation_page = int(citation.get("page"))
+            except (TypeError, ValueError):
+                continue
+            if citation_page in retrieved_pages:
+                citation["page"] = citation_page
+                validated_citations.append(citation)
+        for citation in validated_citations:
+            page_docs = [doc for doc in state["retrieved_chunks"]
+                         if doc.metadata.get("page_num") == citation.get("page")]
+            quote_tokens = set(re.findall(r"\w+", (citation.get("text") or "").lower()))
+            doc = max(page_docs, key=lambda candidate: len(
+                quote_tokens & set(re.findall(r"\w+", candidate.page_content.lower()))
+            ), default=None)
+            if doc:
+                try:
+                    citation["bbox"] = json.loads(doc.metadata.get("bbox_json", "null"))
+                except (TypeError, ValueError):
+                    citation["bbox"] = None
+                citation["page_width"] = doc.metadata.get("page_width")
+                citation["page_height"] = doc.metadata.get("page_height")
 
         # Strip or flag citations in answer text if page does not exist
         # Check citations in text like [Page X]

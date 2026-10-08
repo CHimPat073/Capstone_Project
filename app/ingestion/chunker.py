@@ -26,6 +26,8 @@ the pipeline for only a marginal accuracy gain at this stage.
 """
 
 import uuid
+import json
+import re
 from typing import List, Tuple
 
 from langchain_core.documents import Document
@@ -95,6 +97,24 @@ def create_chunks(
                 child_doc.metadata["chunk_type"] = "text"
                 # Recalculate token estimate for child's actual text
                 child_doc.metadata["token_count"] = len(child_doc.page_content) // 4
+                # Attach the tightest practical word boxes for the chunk. PDF text
+                # extraction order can differ, so match normalized word tokens.
+                try:
+                    words = json.loads(child_doc.metadata.get("bbox_words_json", "[]"))
+                    wanted = {token for token in re.findall(r"\w+", child_doc.page_content.lower()) if len(token) > 2}
+                    stop_words = {"the", "and", "for", "with", "from", "that", "this", "shall", "will", "are", "was", "were", "has", "have", "had", "not", "but", "its"}
+                    wanted -= stop_words
+                    matched = [w for w in words if re.sub(r"\W+", "", w["text"].lower()) in wanted]
+                    if matched:
+                        child_doc.metadata["bbox_json"] = json.dumps([
+                            round(min(w["x0"] for w in matched), 2),
+                            round(min(w["top"] for w in matched), 2),
+                            round(max(w["x1"] for w in matched), 2),
+                            round(max(w["bottom"] for w in matched), 2),
+                        ])
+                except (ValueError, TypeError, KeyError):
+                    pass
+                child_doc.metadata.pop("bbox_words_json", None)
                 all_children.append(child_doc)
 
     # ── Table documents are NEVER split ───────────────────────────────────
