@@ -206,13 +206,16 @@ document.addEventListener("DOMContentLoaded", () => {
       pageText = "";
       updateSearchCount();
     }
-    if (shell.dataset.activePanel === "pdf-pane") $("#pdf-scroll-region").scrollTop = 0;
+    $("#pdf-scroll-region").scrollTop = 0;
   }
 
   function showCitationBox(citation) {
     bboxOverlay.replaceChildren();
     const bounds = citation?.bbox;
     if (showBoxes && Array.isArray(bounds) && bounds.length === 4 && citation.page_width && citation.page_height) {
+      const widthRatio = Math.max(0, (bounds[2] - bounds[0]) / citation.page_width);
+      const heightRatio = Math.max(0, (bounds[3] - bounds[1]) / citation.page_height);
+      if (widthRatio > .96 || heightRatio > .55 || widthRatio * heightRatio > .35) return;
       const box = document.createElement("div");
       box.className = "citation-highlight";
       box.style.left = `${Math.max(0, bounds[0] / citation.page_width * 100)}%`;
@@ -222,6 +225,10 @@ document.addEventListener("DOMContentLoaded", () => {
       box.title = citation.text || `Evidence on page ${citation.page}`;
       bboxOverlay.append(box);
       bboxOverlay.classList.add("visible");
+      requestAnimationFrame(() => {
+        const region = $("#pdf-scroll-region");
+        region.scrollTop = Math.max(0, box.offsetTop - region.clientHeight * .28);
+      });
     }
   }
 
@@ -449,8 +456,7 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#excerpt-summary").textContent = `Page ${page} · selected evidence`;
     $("#excerpt-text").textContent = citation.text || "Passage text was not returned for this citation.";
     const box = citation.bbox;
-    $("#excerpt-location").textContent = Array.isArray(box) ? `PDF points · x ${box[0]}, y ${box[1]}, x₂ ${box[2]}, y₂ ${box[3]}` : "No extracted layout box for this passage.";
-    $("#pdf-pane").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("#excerpt-location").textContent = Array.isArray(box) ? `Highlighted on page ${page}` : `Source text from page ${page}`;
     if (window.matchMedia("(max-width: 960px)").matches) setActivePanel("pdf-pane");
   }
 

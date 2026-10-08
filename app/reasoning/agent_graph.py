@@ -158,14 +158,9 @@ def _offline_full_document_answer(index: Any, question: str) -> Optional[Dict[st
     citations = []
     for page, text in citation_rows:
         citation: Dict[str, Any] = {"page": page, "text": text[:180]}
-        match = next((doc for doc in relevant_chunks if int(doc.metadata.get("page_num", 0)) == page), None)
-        if match:
-            try:
-                citation["bbox"] = json.loads(match.metadata.get("bbox_json", "null"))
-            except (TypeError, ValueError):
-                citation["bbox"] = None
-            citation["page_width"] = match.metadata.get("page_width")
-            citation["page_height"] = match.metadata.get("page_height")
+        geometry = _bbox_for_text(index, page, text)
+        if geometry:
+            citation.update(geometry)
         citations.append(citation)
     unique_pages = sorted({page for page, _ in citation_rows})
     return {
@@ -262,6 +257,48 @@ def _extract_named_entities(page_docs: List[Document], limit: int = 40) -> List[
         if len(found) >= limit:
             break
     return list(found.values())
+
+
+def _bbox_for_text(index: Any, page_number: int, quote: str) -> Optional[Dict[str, Any]]:
+    """Find a tight PDF word box for an exact or near-exact citation passage."""
+    page_doc = next((doc for doc in getattr(index, "page_docs", [])
+                     if int(doc.metadata.get("page_num", 0)) == int(page_number)), None)
+    if page_doc is None:
+        return None
+    try:
+        words = json.loads(page_doc.metadata.get("bbox_words_json", "[]"))
+    except (TypeError, ValueError):
+        return None
+    quote_tokens = [token for token in re.findall(r"[a-zA-Z0-9]+", (quote or "").lower()) if len(token) > 1]
+    word_tokens = [re.sub(r"\W+", "", str(word.get("text", "")).lower()) for word in words]
+    if not quote_tokens or not word_tokens:
+        return None
+    best_start = -1
+    best_length = 0
+    for start, token in enumerate(word_tokens):
+        if token != quote_tokens[0]:
+            continue
+        length = 0
+        for offset, wanted in enumerate(quote_tokens[:60]):
+            if start + offset >= len(word_tokens) or word_tokens[start + offset] != wanted:
+                break
+            length += 1
+        if length > best_length:
+            best_start, best_length = start, length
+    required = 1 if len(quote_tokens) == 1 else 2
+    if best_length < required:
+        return None
+    matched = words[best_start:best_start + best_length]
+    return {
+        "bbox": [
+            round(min(float(word["x0"]) for word in matched), 2),
+            round(min(float(word["top"]) for word in matched), 2),
+            round(max(float(word["x1"]) for word in matched), 2),
+            round(max(float(word["bottom"]) for word in matched), 2),
+        ],
+        "page_width": page_doc.metadata.get("page_width"),
+        "page_height": page_doc.metadata.get("page_height"),
+    }
 
 
 def _extract_dates(page_docs: List[Document], limit: int = 50) -> List[tuple]:
@@ -475,12 +512,13 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None, retrieval_mod
                 quote_tokens & set(re.findall(r"\w+", candidate.page_content.lower()))
             ), default=None)
             if doc:
-                try:
-                    citation["bbox"] = json.loads(doc.metadata.get("bbox_json", "null"))
-                except (TypeError, ValueError):
+                geometry = _bbox_for_text(index, citation.get("page"), citation.get("text") or "")
+                if geometry:
+                    citation.update(geometry)
+                else:
                     citation["bbox"] = None
-                citation["page_width"] = doc.metadata.get("page_width")
-                citation["page_height"] = doc.metadata.get("page_height")
+                    citation["page_width"] = doc.metadata.get("page_width")
+                    citation["page_height"] = doc.metadata.get("page_height")
 
         # Strip or flag citations in answer text if page does not exist
         # Check citations in text like [Page X]

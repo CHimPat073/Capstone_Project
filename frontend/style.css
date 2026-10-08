@@ -340,10 +340,10 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .excerpt-toggle-copy strong { font-size: 10px; font-weight: 650; }
 .excerpt-toggle-copy span { margin-top: 3px; color: var(--muted); font-size: 8px; }
 .drawer-chevron { width: 16px; height: 16px; color: var(--muted); }
-.excerpt-content { max-height: 180px; padding: 0 16px 14px; overflow-y: auto; }
+.excerpt-content { max-height: 150px; padding: 0 16px 12px; overflow-y: auto; }
 .excerpt-tabs { justify-content: space-between; padding: 9px 0; color: var(--muted); border-top: 1px solid var(--line); font-size: 8px; }
 .excerpt-tabs .active { color: var(--accent); font-weight: 650; }
-.excerpt-content blockquote { margin: 2px 0; color: var(--text); font-size: 10px; line-height: 1.6; }
+.excerpt-content blockquote { display: -webkit-box; margin: 2px 0; overflow: hidden; color: var(--text); font-size: 10px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .excerpt-location { display: block; margin-top: 7px; color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 7px; }
 
 .chat-pane { display: flex; min-height: 0; flex-direction: column; border-left: 1px solid var(--line); }
