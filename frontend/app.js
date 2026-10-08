@@ -1,3 +1,7 @@
+if (window.location.protocol === "file:") {
+  window.location.replace("http://127.0.0.1:8000/");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const $ = (selector) => document.querySelector(selector);
   const shell = $("#app-shell");
