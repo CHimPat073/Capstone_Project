@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#f8fafc" />
-  <title>Folio — Document workspace</title>
+  <meta name="theme-color" content="#ffffff" />
+  <title>Folio | Document workspace</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -20,23 +21,23 @@
         </a>
         <button id="collapse-sidebar" class="icon-button collapse-button" type="button" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5M6 3.5v13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
-      <div class="system-status"><span id="health-dot" class="health-dot"></span><span id="health-label">Connecting to Folio</span></div>
+      <div class="system-status"><span id="health-dot" class="health-dot"></span><span id="health-label">Connecting to API</span></div>
 
       <section class="document-section" aria-labelledby="document-heading">
-        <div class="section-heading"><h2 id="document-heading">Document workspace</h2><button class="text-button" id="new-document-button" type="button">New PDF</button></div>
+        <div class="section-heading"><h2 id="document-heading">Document</h2><button class="text-button" id="new-document-button" type="button">Choose PDF</button></div>
         <div id="doc-card" class="doc-card empty">
           <span class="doc-file-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6.75 3.75h7l4.5 4.5v12H6.75v-16.5Z" stroke="currentColor" stroke-width="1.4"/><path d="M13.75 3.75v4.5h4.5M9.5 13h6M9.5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
           <span class="doc-info"><strong id="doc-name">No document yet</strong><span id="doc-sub">Add a PDF to get started</span></span>
           <span id="doc-status-badge" class="doc-status-badge">Empty</span>
         </div>
         <div id="doc-meta" class="doc-meta" hidden>
-          <div class="meta-row"><span>Pages</span><strong id="meta-pages">0</strong></div><div class="meta-row"><span>File size</span><strong id="meta-size">—</strong></div>
-          <div class="meta-row"><span>Text segments</span><strong id="meta-chunks">0</strong></div><div class="meta-row"><span>Added</span><strong id="meta-uploaded">—</strong></div>
+          <div class="meta-row"><span>Pages</span><strong id="meta-pages">0</strong></div><div class="meta-row"><span>File size</span><strong id="meta-size">Not available</strong></div>
+          <div class="meta-row"><span>Text segments</span><strong id="meta-chunks">0</strong></div><div class="meta-row"><span>Added</span><strong id="meta-uploaded">Not available</strong></div>
         </div>
         <form id="upload-form" class="upload-form">
           <label for="pdf-file" class="upload-dropzone" id="upload-dropzone" tabindex="0">
             <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5V4.75m0 0L8.25 8.5M12 4.75 15.75 8.5M5.75 14.75v4.5h12.5v-4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <span class="upload-copy"><strong id="file-label-text">Drop a PDF here</strong><span>or browse files · up to 20 MB</span></span><span class="upload-browse">Browse</span>
+            <span class="upload-copy"><strong id="file-label-text">Drop PDF here</strong><span>PDF only, maximum 20 MB</span></span><span class="upload-browse">Browse</span>
           </label>
           <input type="file" id="pdf-file" accept="application/pdf,.pdf" />
           <button type="submit" id="upload-btn" class="button button-primary" disabled><span>Index document</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4.5 10h11m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -50,15 +51,19 @@
         <div id="outline-list" class="outline-list"><p class="quiet-empty">PDF bookmarks will appear here.</p></div>
       </section>
 
-      <section class="index-card" id="index-card" aria-label="Search index state">
-        <div class="index-heading"><span class="index-pulse"></span><strong>Search index</strong><span class="index-memory">IN MEMORY</span></div>
-        <div class="index-track"><span></span><span></span><span></span></div>
+      <section class="index-card" id="index-card" aria-label="Retrieval pipeline state">
+        <div class="index-heading"><span class="index-pulse"></span><strong>Retrieval pipeline</strong><span class="index-memory">SESSION</span></div>
         <p id="index-copy">Waiting for a document</p>
+        <ul class="capability-list" aria-label="Enabled retrieval features">
+          <li><span>Query router</span><strong>Enabled</strong></li>
+          <li><span>Hybrid retrieval</span><strong>Enabled</strong></li>
+          <li><span>Cross-encoder reranker</span><strong>Enabled</strong></li>
+          <li><span>Multi-hop reasoning</span><strong>Enabled</strong></li>
+        </ul>
       </section>
 
       <div class="sidebar-spacer"></div>
-      <section class="privacy-note"><span class="privacy-shield" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.75 16 5v4.5c0 3.55-2.52 6.25-6 7.75-3.48-1.5-6-4.2-6-7.75V5l6-2.25Z" stroke="currentColor" stroke-width="1.35"/><path d="m7.5 9.75 1.65 1.65 3.4-3.55" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong>Private by design</strong><small>Your PDF and index live in this server session.</small></span></section>
-      <div class="sidebar-foot">FOLIO <span>·</span> DOCUMENT INTELLIGENCE</div>
+      <div class="sidebar-foot">Session storage clears when the server restarts.</div>
     </aside>
 
     <div class="resize-handle resize-sidebar" data-resize="sidebar" role="separator" aria-label="Resize document sidebar" aria-orientation="vertical" tabindex="0"></div>
@@ -67,7 +72,7 @@
       <header class="pdf-topbar">
         <div class="pdf-file-heading"><span class="pdf-mini-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M5 2.75h6l4 4v10.5H5V2.75Z" stroke="currentColor" stroke-width="1.2"/><path d="M11 2.75v4h4M7.5 10h5M7.5 12.75h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span id="pdf-title">PDF preview</span></div>
         <div class="pdf-controls">
-          <div class="page-control"><button id="page-prev" class="icon-button compact" type="button" aria-label="Previous page"><svg viewBox="0 0 20 20" fill="none"><path d="m12 4.5-5.5 5.5 5.5 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><label class="sr-only" for="page-input">Page number</label><input id="page-input" type="number" min="1" value="1" disabled /><span class="page-of">of <strong id="page-total">—</strong></span><button id="page-next" class="icon-button compact" type="button" aria-label="Next page"><svg viewBox="0 0 20 20" fill="none"><path d="m8 4.5 5.5 5.5L8 15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+          <div class="page-control"><button id="page-prev" class="icon-button compact" type="button" aria-label="Previous page"><svg viewBox="0 0 20 20" fill="none"><path d="m12 4.5-5.5 5.5 5.5 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><label class="sr-only" for="page-input">Page number</label><input id="page-input" type="number" min="1" value="1" disabled /><span class="page-of">of <strong id="page-total">0</strong></span><button id="page-next" class="icon-button compact" type="button" aria-label="Next page"><svg viewBox="0 0 20 20" fill="none"><path d="m8 4.5 5.5 5.5L8 15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
           <span class="control-divider"></span>
           <div class="zoom-control"><button id="zoom-out" class="icon-button compact" type="button" aria-label="Zoom out">−</button><span id="zoom-value">100%</span><button id="zoom-in" class="icon-button compact" type="button" aria-label="Zoom in">+</button></div>
           <button id="fit-width" class="toolbar-button" type="button">Fit width</button>
@@ -77,11 +82,11 @@
         </div>
       </header>
       <div class="pdf-scroll-region" id="pdf-scroll-region">
-        <div class="pdf-empty-state" id="pdf-empty-state"><div class="empty-document-mark"><svg viewBox="0 0 48 48" fill="none"><path d="M12 5.5h16l9 9v28H12v-37Z" stroke="currentColor" stroke-width="1.6"/><path d="M28 5.5v9h9M18 23h13M18 28h13M18 33h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><span class="empty-kicker">DOCUMENT CANVAS</span><h2>Your PDF, in context.</h2><p>Upload a document to read pages alongside grounded answers.</p></div>
+        <div class="pdf-empty-state" id="pdf-empty-state"><div class="empty-document-mark"><svg viewBox="0 0 48 48" fill="none"><path d="M12 5.5h16l9 9v28H12v-37Z" stroke="currentColor" stroke-width="1.6"/><path d="M28 5.5v9h9M18 23h13M18 28h13M18 33h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><h2>No PDF loaded</h2><p>Choose a PDF from the document panel to render pages and inspect cited passages.</p></div>
         <div class="pdf-page-wrap" id="pdf-page-wrap" hidden><img id="pdf-page-image" alt="Current PDF page" /><div id="bbox-overlay" class="bbox-overlay" aria-label="Citation highlight"></div></div>
       </div>
       <section class="excerpt-drawer" id="excerpt-drawer">
-        <button class="excerpt-toggle" id="excerpt-toggle" type="button" aria-expanded="false"><span class="drawer-grip"></span><span class="excerpt-toggle-copy"><strong>Source excerpt</strong><span id="excerpt-summary">Select a citation to inspect its passage</span></span><span class="drawer-chevron">⌃</span></button>
+        <button class="excerpt-toggle" id="excerpt-toggle" type="button" aria-expanded="false"><span class="drawer-grip"></span><span class="excerpt-toggle-copy"><strong>Source excerpt</strong><span id="excerpt-summary">Select a citation to inspect its passage</span></span><svg class="drawer-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 12.5 5-5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="excerpt-content" id="excerpt-content" hidden><div class="excerpt-tabs"><span class="active">Evidence passage</span><span id="excerpt-page-label">No citation selected</span></div><blockquote id="excerpt-text">Select a citation chip or source card to show its excerpt here.</blockquote><span id="excerpt-location" class="excerpt-location"></span></div>
       </section>
     </main>
@@ -90,11 +95,11 @@
 
     <aside class="chat-pane" id="chat-pane" aria-label="Chat assistant">
       <header class="assistant-header">
-        <div class="assistant-title-row"><div class="assistant-avatar">f<span>.</span></div><div><h1>Folio assistant</h1><span class="assistant-context">Chatting with <strong id="chat-document-title">no document</strong></span></div><span class="assistant-live" title="Assistant ready"></span></div>
+        <div class="assistant-title-row"><div class="assistant-avatar">F</div><div><h1>Document assistant</h1><span class="assistant-context">Document: <strong id="chat-document-title">none loaded</strong></span></div><span class="assistant-live" title="API available"></span></div>
         <div class="assistant-toolbar"><label class="mode-select-wrap"><span>SEARCH MODE</span><select id="retrieval-mode" aria-label="Retrieval mode"><option value="hybrid">Hybrid search</option><option value="semantic">Semantic only</option><option value="exact">Exact match</option></select></label><details class="options-menu"><summary aria-label="Conversation options">•••</summary><div class="options-popover"><button id="export-chat" type="button">Export conversation</button><button id="clear-history" type="button">Clear history</button></div></details></div>
       </header>
 
-      <div class="assistant-onboarding" id="assistant-onboarding"><div class="onboarding-rule"></div><div><span>DOCUMENT Q&amp;A</span><h2>Find the detail.<br />Keep the context.</h2><p>Ask for a summary, compare sections, or look up an exact term.</p><div class="suggested-grid" id="suggestions-container"><button type="button" class="suggestion-card" data-question="Summarize the key points in this document."><span>01</span>Summarize the key points</button><button type="button" class="suggestion-card" data-question="What obligations should I pay attention to?"><span>02</span>Find key obligations</button><button type="button" class="suggestion-card" data-question="Compare the main risks across sections."><span>03</span>Compare risks by section</button><button type="button" class="suggestion-card" data-question="Find any important dates or deadlines."><span>04</span>Find dates and deadlines</button></div></div></div>
+      <div class="assistant-onboarding" id="assistant-onboarding"><div><h2>Ask about the loaded PDF</h2><p>Answers use retrieved passages and link back to the source page.</p><div class="suggested-grid" id="suggestions-container"><button type="button" class="suggestion-card" data-question="Summarize the key points in this document."><span>01</span>Summarize key points</button><button type="button" class="suggestion-card" data-question="What obligations should I pay attention to?"><span>02</span>List obligations</button><button type="button" class="suggestion-card" data-question="Compare the main risks across sections."><span>03</span>Compare risks</button><button type="button" class="suggestion-card" data-question="Find any important dates or deadlines."><span>04</span>Find dates and deadlines</button></div></div></div>
 
       <div class="chat-history" id="chat-history" aria-live="polite"></div>
       <div id="suggestions-bar" class="suggestions-bar" hidden><span>You could ask</span><div id="followup-suggestions"></div></div>

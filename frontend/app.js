@@ -160,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch("/api/document/outline", { cache: "no-store" });
       const result = await response.json();
       list.replaceChildren();
-      $("#outline-count").textContent = result.entries.length ? result.entries.length : "—";
+      $("#outline-count").textContent = result.entries.length ? result.entries.length : "0";
       if (!result.entries.length) {
         const empty = document.createElement("p");
         empty.className = "quiet-empty";
@@ -337,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const card = document.createElement("details");
     card.className = "reasoning-accordion";
     const summary = document.createElement("summary");
-    summary.innerHTML = `<span class="reasoning-icon">↗</span> How Folio found this <span class="reasoning-route">${escapeHtml(loop.route_strategy || "hybrid")}</span>`;
+    summary.innerHTML = `Retrieval and reasoning details <span class="reasoning-route">${escapeHtml(loop.route_strategy || "hybrid")}</span>`;
     card.append(summary);
     const steps = document.createElement("ol");
     steps.className = "reasoning-steps";
@@ -388,16 +388,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderFeedback(wrapper, data, question) {
     const bar = document.createElement("div");
     bar.className = "message-actions";
-    const copy = actionButton("Copy answer", "⎘");
+    const copy = actionButton("Copy answer", "Copy");
     copy.addEventListener("click", async () => {
       await navigator.clipboard?.writeText(data.answer || "");
       copy.textContent = "Copied";
     });
-    const up = actionButton("Helpful", "↑");
-    const down = actionButton("Not helpful", "↓");
+    const up = actionButton("Helpful", "Helpful");
+    const down = actionButton("Not helpful", "Report issue");
     up.addEventListener("click", () => submitRating(up, data.evaluation_id, 5, true));
     down.addEventListener("click", () => submitRating(down, data.evaluation_id, 1, false));
-    const regenerate = actionButton("Regenerate answer", "↻");
+    const regenerate = actionButton("Regenerate answer", "Regenerate");
     regenerate.addEventListener("click", () => sendQuestion(question));
     bar.append(copy, up, down, regenerate);
     wrapper.append(bar);
@@ -544,7 +544,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatBytes(bytes) {
-    if (!bytes) return "—";
+    if (!bytes) return "Not available";
     return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
   function escapeHtml(value) {
