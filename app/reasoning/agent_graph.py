@@ -100,9 +100,9 @@ def _representative_chunks(index: Any, limit: int = 8) -> List[Document]:
 def _is_full_document_extraction_query(question: str) -> bool:
     """Detect exhaustive extraction requests that cannot be answered from top-k retrieval."""
     text = (question or "").lower()
-    asks_for_collection = bool(re.search(r"\b(all|every|list|mention|extract|identify|find|which|what)\b", text))
+    asks_for_collection = bool(re.search(r"\b(all|every|only|list|mention|extract|identify|find|show|give|which|what)\b", text))
     asks_for_field = bool(re.search(
-        r"\b(names?|people|persons?|authors?|organizations?|companies|dates?|deadlines?|results?|metrics?|skills?|tools?|technologies)\b",
+        r"\b(human|names?|people|persons?|authors?|organizations?|companies|dates?|deadlines?|results?|metrics?|skills?|tools?|technologies)\b",
         text,
     ))
     return asks_for_collection and asks_for_field
@@ -114,7 +114,8 @@ def _offline_full_document_answer(index: Any, question: str) -> Optional[Dict[st
     if not page_docs:
         return None
     query = question.lower()
-    wants_names = bool(re.search(r"\b(names?|people|persons?|authors?|organizations?|companies)\b", query))
+    wants_names = bool(re.search(r"\b(human|names?|people|persons?|authors?|organizations?|companies)\b", query))
+    people_only = bool(re.search(r"\b(human|people|persons?)\b", query))
     wants_dates = bool(re.search(r"\b(dates?|deadlines?)\b", query))
     wants_results = bool(re.search(r"\b(results?|metrics?)\b", query))
     answer_sections: List[str] = []
@@ -122,16 +123,44 @@ def _offline_full_document_answer(index: Any, question: str) -> Optional[Dict[st
 
     if wants_names:
         entities = _extract_named_entities(page_docs)
+        if people_only:
+            non_human_terms = {
+                "the", "this", "that", "contract", "agreement", "supply", "chain", "management",
+                "buyer", "seller", "party", "parties", "exhibit", "section", "article", "clause",
+                "terms", "conditions", "hong kong", "china", "limited", "ltd", "inc", "corp", "co",
+                "arbitration", "commission", "delivery", "inspection", "payment", "credit", "bank",
+                "order", "orders", "general", "special", "provisions", "schedule", "annex", "notice",
+                "all", "risks", "risk", "war", "under", "letter", "shipping", "mark", "partial",
+                "shipment", "force", "majeure", "foreign", "economic", "international", "trade",
+                "provisional", "rules", "rule", "united", "nations", "convention", "sale", "sales",
+                "chamber", "bureau", "quarantine", "customs", "port", "bill", "lading", "insurance",
+                "policy", "certificate", "invoice", "price", "goods", "cost", "charge", "charges",
+            }
+            filtered_entities = []
+            for name, page in entities:
+                if re.match(r"^(?:Mr|Ms|Mrs|Dr|Prof)\.?\s+", name, re.I):
+                    filtered_entities.append((name, page))
+                    continue
+                name_words = set(re.findall(r"\b\w+\b", name.lower()))
+                if name_words & non_human_terms:
+                    continue
+                if any(phrase in name.lower() for phrase in ["hong kong", "supply chain"]):
+                    continue
+                filtered_entities.append((name, page))
+            entities = filtered_entities
         if entities:
-            answer_sections.append("Names and named entities found:\n" + "\n".join(
+            heading = "Human names found:" if people_only else "Names and named entities found:"
+            answer_sections.append(heading + "\n" + "\n".join(
                 f"- {name} [Page {page}]" for name, page in entities
             ))
             citation_rows.extend((page, name) for name, page in entities)
+        elif people_only:
+            answer_sections.append("No human names were found in the document.")
 
     if wants_dates:
         dates = _extract_dates(page_docs)
         if dates:
-            answer_sections.append("Dates found:\n" + "\n".join(
+            answer_sections.append("Dates and deadlines found:\n" + "\n".join(
                 f"- {date} [Page {page}]" for date, page in dates
             ))
             citation_rows.extend((page, date) for date, page in dates)
@@ -269,26 +298,45 @@ def _bbox_for_text(index: Any, page_number: int, quote: str) -> Optional[Dict[st
         words = json.loads(page_doc.metadata.get("bbox_words_json", "[]"))
     except (TypeError, ValueError):
         return None
-    quote_tokens = [token for token in re.findall(r"[a-zA-Z0-9]+", (quote or "").lower()) if len(token) > 1]
-    word_tokens = [re.sub(r"\W+", "", str(word.get("text", "")).lower()) for word in words]
-    if not quote_tokens or not word_tokens:
+    if not words or not quote:
         return None
+
+    quote_tokens = [token for token in re.findall(r"[a-zA-Z0-9]+", quote.lower()) if token]
+    if not quote_tokens:
+        return None
+
+    # Flatten word tokens while tracking source word index
+    flat_tokens = []
+    token_to_word = []
+    for w_idx, w in enumerate(words):
+        for tok in re.findall(r"[a-zA-Z0-9]+", str(w.get("text", "")).lower()):
+            if tok:
+                flat_tokens.append(tok)
+                token_to_word.append(w_idx)
+
+    if not flat_tokens:
+        return None
+
     best_start = -1
     best_length = 0
-    for start, token in enumerate(word_tokens):
-        if token != quote_tokens[0]:
-            continue
+    for start in range(len(flat_tokens)):
         length = 0
         for offset, wanted in enumerate(quote_tokens[:60]):
-            if start + offset >= len(word_tokens) or word_tokens[start + offset] != wanted:
+            if start + offset >= len(flat_tokens) or flat_tokens[start + offset] != wanted:
                 break
             length += 1
         if length > best_length:
             best_start, best_length = start, length
-    required = 1 if len(quote_tokens) == 1 else 2
-    if best_length < required:
+
+    required = 1 if len(quote_tokens) == 1 else min(2, len(quote_tokens))
+    if best_length < required or best_start < 0:
         return None
-    matched = words[best_start:best_start + best_length]
+
+    matched_word_indices = sorted(set(token_to_word[best_start:best_start + best_length]))
+    matched = [words[idx] for idx in matched_word_indices]
+    if not matched:
+        return None
+
     return {
         "bbox": [
             round(min(float(word["x0"]) for word in matched), 2),
@@ -305,14 +353,16 @@ def _extract_dates(page_docs: List[Document], limit: int = 50) -> List[tuple]:
     patterns = (
         re.compile(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b"),
         re.compile(r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,\s*|\s+)\d{4}\b", re.I),
+        re.compile(r"\bwithin\s+\d+\s+(?:calendar\s+)?(?:days|months|weeks|business\s+days)(?:\s+[a-zA-Z]+){1,8}\b", re.I),
     )
     found: Dict[str, tuple] = {}
     for doc in page_docs:
         page = int(doc.metadata.get("page_num", 1))
         for pattern in patterns:
             for value in pattern.findall(doc.page_content):
-                key = value.lower()
-                found.setdefault(key, (value, page))
+                val_clean = re.sub(r"\s+", " ", value).strip(" .,;")
+                key = val_clean.lower()
+                found.setdefault(key, (val_clean, page))
                 if len(found) >= limit:
                     return list(found.values())
     return list(found.values())
@@ -415,14 +465,27 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None, retrieval_mod
         if route.requires_multiple_hops:
             # Search each side of a comparison, plus the full question for links.
             queries = decompose_query(query)
+        result_sets = [
+            retrieve(query=subquery, index=index, k=route.top_k, mode=retrieval_mode)
+            for subquery in queries
+        ]
         chunks = []
         seen = set()
-        for subquery in queries:
-            for doc in retrieve(query=subquery, index=index, k=route.top_k, mode=retrieval_mode):
+        # Round-robin merging prevents the first subquery from consuming the
+        # entire evidence budget before the remaining hops contribute.
+        for rank in range(max((len(results) for results in result_sets), default=0)):
+            for results in result_sets:
+                if rank >= len(results):
+                    continue
+                doc = results[rank]
                 key = doc.metadata.get("chunk_id") or (doc.metadata.get("page_num"), doc.page_content)
                 if key not in seen:
                     seen.add(key)
                     chunks.append(doc)
+                if len(chunks) >= max(route.top_k, 5):
+                    break
+            if len(chunks) >= max(route.top_k, 5):
+                break
         chunks = chunks[:max(route.top_k, 5)]
         print(f"[RETRIEVE] Fetched {len(chunks)} chunks.")
         pages = sorted({int(doc.metadata["page_num"]) for doc in chunks
@@ -681,5 +744,9 @@ def answer(
         "follow_up_suggestions": final_state.get("follow_up_suggestions", []),
         "sub_queries": final_state.get("sub_queries", []),
         "retrieved_pages": final_state.get("retrieved_pages", []),
-        "route_strategy": retrieval_mode if retrieval_mode != "hybrid" else route_query(retrieval_query).strategy,
+        "route_strategy": (
+            "document_overview" if _is_overview_query(question)
+            else retrieval_mode if retrieval_mode != "hybrid"
+            else route_query(retrieval_query).strategy
+        ),
     }
