@@ -32,7 +32,10 @@ from typing import Any, List
 
 import chromadb
 from langchain_chroma import Chroma
-from langchain_community.retrievers import BM25Retriever
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning, message=r"`langchain-community` is being sunset")
+    from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 

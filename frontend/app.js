@@ -307,6 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
       assistantMessage.innerHTML = renderAnswer(data.answer, data.citations || []);
       renderReasoning(assistantMessage, data);
       renderSources(assistantMessage, data.sources || []);
+      renderEvalSummary(assistantMessage, data.eval_metrics);
       renderFeedback(assistantMessage, data, question);
       conversation.push({ role: "assistant", content: data.answer });
       renderSuggestions(data.suggestions || []);
@@ -314,8 +315,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.citations?.length) selectCitation(data.citations[0]);
     } catch (error) {
       assistantMessage.classList.remove("is-loading");
-      assistantMessage.textContent = error.message;
       assistantMessage.classList.add("message-error");
+      const errBox = document.createElement("div");
+      errBox.className = "error-copy";
+      const errText = document.createElement("p");
+      errText.textContent = error.message;
+      const retryBtn = document.createElement("button");
+      retryBtn.type = "button";
+      retryBtn.className = "button-retry";
+      retryBtn.textContent = "Retry";
+      retryBtn.addEventListener("click", () => sendQuestion(question, assistantMessage));
+      errBox.append(errText, retryBtn);
+      assistantMessage.replaceChildren(errBox);
     } finally {
       queryInput.disabled = false;
       sendButton.disabled = false;
@@ -394,6 +405,35 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     details.append(summary, list);
     wrapper.append(details);
+  }
+
+  function renderEvalSummary(wrapper, metrics) {
+    if (!metrics) return;
+    const card = document.createElement("details");
+    card.className = "eval-accordion";
+    const summary = document.createElement("summary");
+    const scorePct = Math.round((metrics.document_relevance_score || 0) * 100);
+    summary.innerHTML = `Evaluation metrics <span class="eval-level">${escapeHtml(metrics.relevance_level || "Standard")} · ${scorePct}%</span>`;
+    card.append(summary);
+    const grid = document.createElement("div");
+    grid.className = "eval-grid";
+    addMetric(grid, "Relevance Score", `${scorePct}%`);
+    addMetric(grid, "Faithfulness", `${Math.round((metrics.faithfulness || 0) * 100)}%`);
+    addMetric(grid, "Context Alignment", `${Math.round((metrics.context_alignment || 0) * 100)}%`);
+    addMetric(grid, "Answer Relevancy", `${Math.round((metrics.answer_relevancy || 0) * 100)}%`);
+    card.append(grid);
+    wrapper.append(card);
+  }
+
+  function addMetric(container, label, value) {
+    const box = document.createElement("div");
+    box.className = "eval-metric-box";
+    const title = document.createElement("span");
+    title.textContent = label;
+    const stat = document.createElement("strong");
+    stat.textContent = value;
+    box.append(title, stat);
+    container.append(box);
   }
 
   function renderFeedback(wrapper, data, question) {

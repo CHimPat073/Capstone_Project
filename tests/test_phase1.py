@@ -253,8 +253,9 @@ class TestBuildIndex:
     These tests load the real embedding model (~90 MB download on first run).
     """
 
+    @classmethod
     @pytest.fixture(scope="class")
-    def index(self, request):
+    def index(cls, request):
         """Build index once and share across all tests in this class."""
         pdf_bytes = _make_minimal_pdf()
         idx = build_index(pdf_bytes)
