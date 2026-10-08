@@ -32,6 +32,11 @@ OUT_OF_DOMAIN_PATTERNS = [
     r"\bwrite a python script\b",
     r"\bwho won\b",
     r"\bhow to bake\b",
+    r"\brecipe\b",
+    r"\bhow to cook\b",
+    r"\bmovie\b",
+    r"\bsong\b",
+    r"\blyrics\b",
 ]
 
 
@@ -172,6 +177,15 @@ class ChatService:
             retrieved_pages=result.get("retrieved_pages", []),
         )
 
+        # Measure lexical/semantic context alignment between query and retrieved chunks
+        q_tokens = set(re.findall(r"\b\w+\b", q_clean.lower())) - {"what", "which", "where", "when", "does", "have", "with", "from", "the", "and", "for", "about", "tell", "me", "are", "is"}
+        all_chunk_text = " ".join(d.page_content.lower() for d in raw_sources)
+        if q_tokens:
+            matches = sum(1 for tok in q_tokens if tok in all_chunk_text)
+            alignment_score = round(min(1.0, matches / len(q_tokens)), 2)
+        else:
+            alignment_score = 0.85
+
         # Detect out-of-domain refusal from LLM/agent
         refusal_phrases = [
             "outside the scope",
@@ -186,8 +200,12 @@ class ChatService:
             status = "grounding_failed"
             success = False
             final_answer = "I couldn't verify this answer against the document."
-        elif confidence == "low" and is_refusal:
-            if rewrite_count >= 2:
+        elif (confidence == "low" and is_refusal) or (is_refusal and alignment_score <= 0.15):
+            if alignment_score <= 0.15 and len(q_tokens) >= 2:
+                status = "out_of_domain"
+                success = False
+                final_answer = "This question doesn't appear to be related to the uploaded document. I can only answer questions based on the uploaded document."
+            elif rewrite_count >= 2:
                 status = "retrieval_failed"
                 success = False
                 final_answer = "I couldn't find enough information in the document to answer this question reliably."
@@ -209,15 +227,6 @@ class ChatService:
         # Compute Evaluation & Relevance Metrics (Faithfulness, Context Alignment, Relevancy)
         faith_score = calculate_faithfulness(final_answer, raw_sources, is_grounded, result.get("unsupported_claims", []))
         ans_rel_score = calculate_answer_relevancy(q_clean, final_answer)
-
-        # Measure lexical/semantic context alignment between query and retrieved chunks
-        q_tokens = set(re.findall(r"\b\w+\b", q_clean.lower())) - {"what", "which", "where", "when", "does", "have", "with", "from", "the", "and", "for", "about", "tell", "me", "are", "is"}
-        all_chunk_text = " ".join(d.page_content.lower() for d in raw_sources)
-        if q_tokens:
-            matches = sum(1 for tok in q_tokens if tok in all_chunk_text)
-            alignment_score = round(min(1.0, matches / len(q_tokens)), 2)
-        else:
-            alignment_score = 0.85
 
         # Overall document relevance score (weighted blend: 40% alignment, 35% faithfulness, 25% relevancy)
         if status == "out_of_domain":
