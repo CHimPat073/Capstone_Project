@@ -154,7 +154,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function enableChat(ready) {
     queryInput.disabled = !ready;
     sendButton.disabled = !ready;
-    if (ready) queryInput.placeholder = "Ask a question or request a comparison…";
+    queryInput.title = ready ? "" : "Upload a PDF document to begin chatting";
+    queryInput.placeholder = ready ? "Ask a question or request a comparison…" : "Upload a document to begin…";
   }
 
   async function loadOutline() {
@@ -517,7 +518,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("#suggestions-container").addEventListener("click", (event) => {
     const button = event.target.closest("[data-question]");
-    if (button && !queryInput.disabled) sendQuestion(button.dataset.question);
+    if (!button) return;
+    if (queryInput.disabled) {
+      fileInput.click();
+      $("#upload-status").textContent = "Please upload a PDF document first.";
+      $("#upload-status").classList.add("error-text");
+      return;
+    }
+    sendQuestion(button.dataset.question);
   });
 
   $("#excerpt-toggle").addEventListener("click", (event) => {

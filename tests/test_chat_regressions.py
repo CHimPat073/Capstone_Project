@@ -166,3 +166,24 @@ def test_unrelated_query_classified_as_out_of_domain():
     assert response.status == "out_of_domain"
     assert response.success is False
 
+
+def test_authorship_query_identifies_individual_author_and_supervisor():
+    pages = [
+        _document("INTERNSHIP REPORT By DIKSHA DAMAHE 23BAI11342 Under Supervision of Mr. Abhinav Arvind", 1),
+        _document("CERTIFICATE submitted by DIKSHA DAMAHE is work done by Her", 2),
+    ]
+    index = SimpleNamespace(page_docs=pages, child_chunks=pages)
+    result = answer(index, "tell me the number of persons made this project", llm_client=LLMClient())
+    assert result["route_strategy"] == "full_document_extraction"
+    assert "1 person" in result["answer"]
+    assert "DIKSHA DAMAHE" in result["answer"]
+    assert "Mr. Abhinav Arvind" in result["answer"]
+    assert len(result["citations"]) > 0
+
+
+def test_followup_query_cleans_conversational_prefix_and_typo():
+    from app.reasoning.agent_graph import resolve_followup_query
+
+    resolved = resolve_followup_query("i said number of perosna made this project", history=[{"role": "user", "content": "hello"}])
+    assert "i said" not in resolved.lower()
+    assert "persons" in resolved.lower()

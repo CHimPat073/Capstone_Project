@@ -22,7 +22,7 @@ RULES ENFORCED:
 
 import json
 import re
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
@@ -100,12 +100,47 @@ def _representative_chunks(index: Any, limit: int = 8) -> List[Document]:
 def _is_full_document_extraction_query(question: str) -> bool:
     """Detect exhaustive extraction requests that cannot be answered from top-k retrieval."""
     text = (question or "").lower()
-    asks_for_collection = bool(re.search(r"\b(all|every|only|list|mention|extract|identify|find|show|give|which|what)\b", text))
+    if re.search(r"\b(who (?:made|wrote|created|did|prepared|submitted|authored)|(?:number of|how many) (?:persons?|people|members?|authors?|students?|candidates?)|authors?|creators?|submitted by|prepared by)\b", text):
+        return True
+    asks_for_collection = bool(re.search(r"\b(all|every|only|list|mention|extract|identify|find|show|give|which|what|tell|how many|who)\b", text))
     asks_for_field = bool(re.search(
         r"\b(human|names?|people|persons?|authors?|organizations?|companies|dates?|deadlines?|results?|metrics?|skills?|tools?|technologies)\b",
         text,
     ))
     return asks_for_collection and asks_for_field
+
+
+def _extract_authorship(page_docs: List[Document]) -> Tuple[List[tuple], List[tuple], int]:
+    """Extract project authors, students, supervisors, and contributor counts from front matter."""
+    front_docs = page_docs[:min(4, len(page_docs))]
+    authors: List[tuple] = []
+    supervisors: List[tuple] = []
+
+    for doc in front_docs:
+        page = int(doc.metadata.get("page_num", 1))
+        text = doc.page_content
+
+        for m in re.finditer(r"\bBy\s*[\n:]\s*([A-Za-z\s]{3,35})(?:\s*[\n\r]\s*([0-9A-Z]{6,12}))?", text, re.I):
+            raw_name = re.sub(r"\s+", " ", m.group(1)).strip()
+            if len(raw_name) >= 3 and not any(w in raw_name.lower() for w in ["department", "school", "university", "bachelor", "technology", "report", "under supervision"]):
+                if not any(a[0].lower() == raw_name.lower() for a in authors):
+                    authors.append((raw_name, page, m.group(0).strip()))
+
+        for m in re.finditer(r"submitted by\s+([A-Za-z\s]{3,35})(?:\s*\(Regd?\.\s*No\.?:\s*([^\)]+)\))?", text, re.I):
+            raw_name = re.sub(r"\s+", " ", m.group(1)).strip()
+            if len(raw_name) >= 3 and not any(w in raw_name.lower() for w in ["department", "school", "university"]):
+                if not any(a[0].lower() == raw_name.lower() for a in authors):
+                    authors.append((raw_name, page, m.group(0).strip()))
+
+        for m in re.finditer(r"(?:Under Supervision of|Guide|Supervisor)[\s\n:]+((?:Mr|Ms|Mrs|Dr|Prof)\.?\s+[A-Za-z\s]{3,30})", text, re.I):
+            raw_name = re.sub(r"\s+", " ", m.group(1).splitlines()[0]).strip(" .,;")
+            if raw_name and not any(s[0].lower() == raw_name.lower() for s in supervisors):
+                supervisors.append((raw_name, page, m.group(0).strip()))
+
+    all_front_text = " ".join(doc.page_content for doc in front_docs)
+    cert_singular = bool(re.search(r"work done by\s+(Her|Him)\b", all_front_text, re.I))
+    count = len(authors) if authors else (1 if cert_singular else 0)
+    return authors, supervisors, count
 
 
 def _offline_full_document_answer(index: Any, question: str) -> Optional[Dict[str, Any]]:
@@ -114,6 +149,10 @@ def _offline_full_document_answer(index: Any, question: str) -> Optional[Dict[st
     if not page_docs:
         return None
     query = question.lower()
+    wants_authorship = bool(re.search(
+        r"\b(who (?:made|wrote|created|did|prepared|submitted|authored)|(?:number of|how many) (?:persons?|people|members?|authors?|students?|candidates?)|authors?|creators?|submitted by|prepared by)\b",
+        query,
+    ))
     wants_names = bool(re.search(r"\b(human|names?|people|persons?|authors?|organizations?|companies)\b", query))
     people_only = bool(re.search(r"\b(human|people|persons?)\b", query))
     wants_dates = bool(re.search(r"\b(dates?|deadlines?)\b", query))
@@ -121,7 +160,22 @@ def _offline_full_document_answer(index: Any, question: str) -> Optional[Dict[st
     answer_sections: List[str] = []
     citation_rows: List[tuple] = []
 
-    if wants_names:
+    if wants_authorship:
+        authors, supervisors, count = _extract_authorship(page_docs)
+        if authors:
+            names_str = ", ".join(f"{name} [Page {page}]" for name, page, _ in authors)
+            lines = [f"This project was made by {count} person{'s' if count != 1 else ''}: {names_str}."]
+            citation_rows.extend((page, cite_text) for _, page, cite_text in authors)
+            if supervisors:
+                sups_str = ", ".join(f"{name} [Page {page}]" for name, page, _ in supervisors)
+                lines.append(f"Supervised by: {sups_str}.")
+                citation_rows.extend((page, cite_text) for _, page, cite_text in supervisors)
+            answer_sections.append("\n\n".join(lines))
+        elif count == 1:
+            answer_sections.append("This project was completed by 1 person [Page 2].")
+            citation_rows.append((2, "work done by Her"))
+
+    if wants_names and not wants_authorship:
         entities = _extract_named_entities(page_docs)
         if people_only:
             non_human_terms = {
@@ -410,10 +464,21 @@ def resolve_followup_query(
     Check if a question is a follow-up referring to previous conversation.
     If clear and standalone, avoids unnecessary LLM calls (Simple > Clever).
     """
-    if not history or len(history) == 0:
-        return question
+    raw_q = (question or "").strip()
+    cleaned_q = re.sub(
+        r"^(?:i said|i asked|i told you|as i said|tell me again|again|please tell me|once again)[,:\s]+",
+        "",
+        raw_q,
+        flags=re.I,
+    ).strip()
+    cleaned_q = re.sub(r"\bperosna\b", "persons", cleaned_q, flags=re.I)
+    cleaned_q = re.sub(r"\bpeopel\b", "people", cleaned_q, flags=re.I)
+    cleaned_q = re.sub(r"\bauthro\b", "author", cleaned_q, flags=re.I)
 
-    q_lower = question.strip().lower()
+    if not history or len(history) == 0:
+        return cleaned_q
+
+    q_lower = cleaned_q.lower()
 
     # Fast check: pronouns or elliptical indicators requiring context
     followup_indicators = [
@@ -425,12 +490,12 @@ def resolve_followup_query(
 
     # If it's already a complete explicit sentence without pronoun dependency, keep it
     if not is_followup:
-        return question
+        return cleaned_q
 
     # Use LLM to resolve pronoun reference into standalone search query
     llm = client or LLMClient()
     conv_text = _format_conversation_history(history)
-    user_prompt = f"Recent Conversation:\n{conv_text}\n\nCurrent Question: {question}"
+    user_prompt = f"Recent Conversation:\n{conv_text}\n\nCurrent Question: {cleaned_q}"
 
     try:
         res = llm.call_json(FOLLOWUP_RESOLVER_SYSTEM_PROMPT, user_prompt)
@@ -441,7 +506,7 @@ def resolve_followup_query(
     except Exception as exc:
         print(f"[FOLLOW-UP RESOLVER] Resolution fallback: {exc}")
 
-    return question
+    return cleaned_q
 
 
 def build_agent_graph(index: Any, llm: Optional[LLMClient] = None, retrieval_mode: str = "hybrid"):
@@ -698,15 +763,13 @@ def answer(
         }
 
     client = llm_client or LLMClient()
-
-    if client.provider == "fallback" and _is_full_document_extraction_query(question):
-        extracted = _offline_full_document_answer(pdf_index, question)
-        if extracted:
-            return extracted
-
-    # Step 1: Follow-up resolution (interprets pronouns like "that", "who can do it?" using recent messages)
     history = conversation_history or []
     retrieval_query = resolve_followup_query(question, history, client)
+
+    if client.provider == "fallback" and (_is_full_document_extraction_query(question) or _is_full_document_extraction_query(retrieval_query)):
+        extracted = _offline_full_document_answer(pdf_index, retrieval_query or question)
+        if extracted:
+            return extracted
 
     graph = build_agent_graph(pdf_index, client, retrieval_mode=retrieval_mode)
 

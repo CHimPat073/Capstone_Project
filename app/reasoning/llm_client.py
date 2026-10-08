@@ -362,6 +362,11 @@ class LLMClient:
                        if len(word) >= 4 and word not in stop_words}
         candidates = []
         seen = set()
+        is_authorship_query = bool(re.search(
+            r"\b(who (?:made|wrote|created|did|prepared|submitted|authored)|(?:number of|how many) (?:persons?|people|members?|authors?|students?|candidates?)|authors?|creators?|submitted by|prepared by|student|candidate)\b",
+            question,
+            re.IGNORECASE,
+        ))
         for page, text in pages:
             parts = re.split(r"(?<=[.!?])\s+|\s{2,}", text)
             if len(parts) == 1 and len(text) > 220:
@@ -378,7 +383,10 @@ class LLMClient:
                 terms = set(re.findall(r"\b[a-zA-Z0-9]+\b", sentence.lower()))
                 overlap = len(query_terms & terms)
                 score = overlap * 10 + min(len(sentence), 180) / 180 - position * .02
-                if re.search(
+                if is_authorship_query:
+                    if re.search(r"\b(submitted by|by\s+[A-Z]|work done by|under supervision|candidate|student|author)\b", sentence, re.I):
+                        score += 15
+                elif re.search(
                     r"\b(report submitted|award of degree|certificate|acknowledgement|table of contents|"
                     r"index|contents|requirements\s+\d+\.\d+|source code|system architecture|"
                     r"output\s*&\s*results|conclusion\s*&\s*recommendations)\b",
