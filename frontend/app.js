@@ -231,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentZoom = Math.max(.5, Math.min(2, Math.round(value * 10) / 10));
     $("#zoom-value").textContent = `${Math.round(currentZoom * 100)}%`;
     pageWrap.style.width = `${currentZoom * 100}%`;
+    pdfImage.style.maxWidth = "none";
   }
   $("#toggle-boxes").addEventListener("click", (event) => {
     showBoxes = !showBoxes;
