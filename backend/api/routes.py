@@ -21,6 +21,7 @@ from backend.services.document_service import document_service
 
 router = APIRouter(prefix="/api")
 human_feedback = []
+MAX_PDF_BYTES = 20 * 1024 * 1024
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -113,6 +114,8 @@ async def upload_document(file: UploadFile = File(...)):
         content = await file.read()
         if len(content) == 0:
             raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+        if len(content) > MAX_PDF_BYTES:
+            raise HTTPException(status_code=413, detail="PDF exceeds the 20 MB upload limit.")
 
         index = document_service.ingest_document(file.filename, content)
 
@@ -123,6 +126,8 @@ async def upload_document(file: UploadFile = File(...)):
             pages=index.num_pages,
             chunks=len(index.child_chunks),
         )
+    except HTTPException:
+        raise
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as exc:
@@ -161,7 +166,7 @@ def clear_chat_history():
 @router.post("/evaluation/feedback")
 def submit_human_feedback(feedback: HumanFeedback):
     """Collect explicit answer ratings in process memory for human evaluation."""
-    human_feedback.append(feedback.dict())
+    human_feedback.append(feedback.model_dump())
     return {"accepted": True, "count": len(human_feedback)}
 
 

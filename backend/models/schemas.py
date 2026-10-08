@@ -73,11 +73,11 @@ class ChatResponse(BaseModel):
     success: bool
     answer: str
     status: str  # "answered", "needs_clarification", "out_of_domain", "retrieval_failed", "grounding_failed"
-    citations: List[Citation] = []
-    sources: List[Source] = []
+    citations: List[Citation] = Field(default_factory=list)
+    sources: List[Source] = Field(default_factory=list)
     loop: LoopStatus
     eval_metrics: Optional[EvalMetrics] = None
-    suggestions: List[str] = []
+    suggestions: List[str] = Field(default_factory=list)
     evaluation_id: Optional[str] = None
 
 
