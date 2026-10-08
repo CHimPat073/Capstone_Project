@@ -17,10 +17,10 @@ from backend.models.schemas import ChatResponse, Citation, EvalMetrics, LoopStat
 
 # Standard clarification suggestions if the user asks a very vague question
 DEFAULT_SUGGESTIONS = [
-    "What are the payment terms?",
-    "What are the termination conditions?",
-    "Who are the parties to the agreement?",
-    "What is the governing law?",
+    "Summarize the main points in this document.",
+    "Which people, organizations, and topics are mentioned?",
+    "What dates or deadlines appear in this document?",
+    "How are the main sections related?",
 ]
 
 # Common out-of-domain patterns for quick classification
@@ -68,7 +68,7 @@ class ChatService:
         # PART 4: Check for extremely vague / unclear / isolated single-word queries
         vague_short_queries = {"what", "how", "why", "that", "it", "more", "tell me", "what about that", "details", "explain", "help"}
         words = q_clean.split()
-        is_isolated_word = len(words) == 1 and not q_clean.endswith("?") and q_clean.lower() not in {"parties", "term", "termination", "payment", "indemnification", "confidentiality", "warranty", "liability", "governing", "jurisdiction", "arbitration", "assignment", "amendment", "severability"}
+        is_isolated_word = len(words) == 1 and not q_clean.endswith("?")
 
         if q_clean.lower() in vague_short_queries or is_isolated_word:
             return ChatResponse(

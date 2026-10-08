@@ -26,7 +26,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 # ── PROMPTS (Visible and easily inspected for Viva) ───────────────────────────
 
-GRADER_SYSTEM_PROMPT = """You are a context evaluation grader for legal contracts and documents.
+GRADER_SYSTEM_PROMPT = """You are a context evaluation grader for document question answering.
 Your sole job is to evaluate if the retrieved context contains enough information to answer the user's question.
 
 Rules:
@@ -40,12 +40,12 @@ Rules:
 }
 """
 
-REWRITER_SYSTEM_PROMPT = """You are a legal document retrieval query optimizer.
-Your job is to rewrite the user's search query to better match standard contract and legal document phrasing.
+REWRITER_SYSTEM_PROMPT = """You are a document retrieval query optimizer.
+Your job is to rewrite the user's search query to better match the terminology likely used in the uploaded document.
 
 Rules:
 1. Do NOT answer the question.
-2. Expand abbreviations, clarify vague wording, and use relevant legal/contract terminology.
+2. Expand abbreviations and clarify vague wording without assuming a document type or adding unsupported concepts.
 3. Output JSON ONLY with this structure:
 {
     "rewritten_query": "Optimized search query string"
@@ -71,10 +71,10 @@ Answer the user's question using ONLY the provided document context.
 Your goal is to explain the answer in natural, easy-to-understand language while preserving the exact meaning of the document.
 
 Rules:
-1. Do NOT blindly copy raw contract clauses or dump full chunks. Synthesize and explain naturally in clear words.
+1. Do NOT blindly copy raw passages or dump full chunks. Synthesize and explain naturally in clear words.
 2. Answer strictly using ONLY the provided context. Do NOT invent information or use outside knowledge.
-3. Preserve the exact legal and factual meaning of the document.
-4. Explain complex legal/technical language in simpler terms without altering obligations or rights.
+3. Preserve the exact factual meaning of the document.
+4. Explain complex language in simpler terms without changing its meaning.
 5. Answer the user's actual question directly first, then provide conditions or bullet points if helpful.
 6. Use bullet points when explaining multiple terms, conditions, or steps to improve readability.
 7. Cite the exact page number for every factual claim using [Page X] (e.g., "The notice period is 30 days. [Page 2]").
@@ -197,19 +197,19 @@ class LLMClient:
         if "query optimizer" in system_prompt.lower():
             q_match = re.search(r"Question:\s*(.*?)\n", user_prompt, re.DOTALL | re.IGNORECASE)
             orig_q = q_match.group(1).strip() if q_match else user_prompt.strip()
-            # Expand common contract phrases
+            # Expand a few broad document-search terms without assuming a document type.
             expanded = orig_q
             replacements = {
-                "cancel": "terminate termination rights",
-                "law": "governing law jurisdiction",
-                "rules": "regulations terms conditions",
-                "pay": "payment fee compensation",
-                "end": "expiration termination date",
+                "people": "names authors participants",
+                "work": "experience responsibilities projects",
+                "date": "dates timeline deadline period",
+                "summary": "main points overview highlights",
+                "skills": "skills technologies competencies",
             }
             for k, v in replacements.items():
                 if k in expanded.lower():
                     expanded = f"{expanded} ({v})"
-            return {"rewritten_query": expanded if expanded != orig_q else f"{orig_q} clause agreement details"}
+            return {"rewritten_query": expanded if expanded != orig_q else f"{orig_q} key facts details"}
 
         # Follow-up resolver fallback
         if "conversational query resolver" in system_prompt.lower():

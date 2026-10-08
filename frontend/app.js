@@ -329,7 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderAnswer(answer, citations) {
     const escaped = escapeHtml(answer || "");
-    return `<div class="answer-copy">${escaped.replace(/\[Page\s+(\d+)\]/g, (_, page) => {
+    return `<div class="bubble answer-copy">${escaped.replace(/\[Page\s+(\d+)\]/g, (_, page) => {
       const citation = citations.find((item) => Number(item.page) === Number(page));
       const label = citation?.text ? escapeHtml(citation.text.slice(0, 180)) : `Jump to page ${page}`;
       return `<button type="button" class="inline-citation" data-page="${Number(page)}" title="${label}">[p. ${Number(page)}]</button>`;

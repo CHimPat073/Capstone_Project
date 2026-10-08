@@ -64,9 +64,6 @@ class DocumentService:
         self.file_size_bytes = len(pdf_bytes)
         self.uploaded_at = datetime.now(timezone.utc).isoformat()
         self.conversation_history = []
-        self.current_pdf_bytes = None
-        self.file_size_bytes = 0
-        self.uploaded_at = None
 
         return index
 
@@ -75,6 +72,9 @@ class DocumentService:
         self.current_index = None
         self.current_filename = None
         self.conversation_history = []
+        self.current_pdf_bytes = None
+        self.file_size_bytes = 0
+        self.uploaded_at = None
 
     def get_status(self) -> dict:
         if self.current_index:
