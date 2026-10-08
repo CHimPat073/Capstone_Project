@@ -53,6 +53,8 @@ class AgentState(TypedDict):
     confidence: str                 # "high", "medium", or "low"
     unsupported_claims: List[str]
     follow_up_suggestions: List[str]
+    sub_queries: List[str]
+    retrieved_pages: List[int]
 
 
 def _format_context(docs: List[Document]) -> str:
@@ -120,7 +122,7 @@ def resolve_followup_query(
     return question
 
 
-def build_agent_graph(index: Any, llm: Optional[LLMClient] = None):
+def build_agent_graph(index: Any, llm: Optional[LLMClient] = None, retrieval_mode: str = "hybrid"):
     """
     Build and compile the LangGraph StateGraph bound to the provided index and LLM client.
     """
@@ -138,14 +140,16 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None):
         chunks = []
         seen = set()
         for subquery in queries:
-            for doc in retrieve(query=subquery, index=index, k=route.top_k):
+            for doc in retrieve(query=subquery, index=index, k=route.top_k, mode=retrieval_mode):
                 key = doc.metadata.get("chunk_id") or (doc.metadata.get("page_num"), doc.page_content)
                 if key not in seen:
                     seen.add(key)
                     chunks.append(doc)
         chunks = chunks[:max(route.top_k, 5)]
         print(f"[RETRIEVE] Fetched {len(chunks)} chunks.")
-        return {"retrieved_chunks": chunks}
+        pages = sorted({int(doc.metadata["page_num"]) for doc in chunks
+                        if str(doc.metadata.get("page_num", "")).isdigit()})
+        return {"retrieved_chunks": chunks, "sub_queries": queries, "retrieved_pages": pages}
 
     # ── NODE 2: Grade Node ────────────────────────────────────────────────────
     def grade_node(state: AgentState) -> Dict[str, Any]:
@@ -312,6 +316,7 @@ def answer(
     question: str,
     llm_client: Optional[LLMClient] = None,
     conversation_history: Optional[List[Dict[str, str]]] = None,
+    retrieval_mode: str = "hybrid",
 ) -> Dict[str, Any]:
     """
     Public entry point for Phase 3 & Final Chat:
@@ -356,7 +361,7 @@ def answer(
     history = conversation_history or []
     retrieval_query = resolve_followup_query(question, history, client)
 
-    graph = build_agent_graph(pdf_index, client)
+    graph = build_agent_graph(pdf_index, client, retrieval_mode=retrieval_mode)
 
     initial_state: AgentState = {
         "query": question,
@@ -372,6 +377,8 @@ def answer(
         "confidence": "high",
         "unsupported_claims": [],
         "follow_up_suggestions": [],
+        "sub_queries": [],
+        "retrieved_pages": [],
     }
 
     final_state = graph.invoke(initial_state)
@@ -388,4 +395,7 @@ def answer(
         "unsupported_claims": final_state["unsupported_claims"],
         "grade_reason": final_state.get("grade_reason", ""),
         "follow_up_suggestions": final_state.get("follow_up_suggestions", []),
+        "sub_queries": final_state.get("sub_queries", []),
+        "retrieved_pages": final_state.get("retrieved_pages", []),
+        "route_strategy": retrieval_mode if retrieval_mode != "hybrid" else route_query(retrieval_query).strategy,
     }

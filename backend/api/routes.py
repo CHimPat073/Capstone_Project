@@ -2,7 +2,12 @@
 routes.py — FastAPI route handlers for the Document Intelligence Assistant.
 """
 
+import io
+
+import pypdf
+import pypdfium2 as pdfium
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from backend.models.schemas import (
     ChatRequest,
     ChatResponse,
@@ -28,6 +33,67 @@ def health():
 def get_status():
     """3. GET /api/status"""
     return DocumentStatus(**document_service.get_status())
+
+
+@router.get("/document/page/{page_number}")
+def get_document_page(page_number: int):
+    """Render a single PDF page to PNG in memory for the document canvas."""
+    content = document_service.current_pdf_bytes
+    if not content:
+        raise HTTPException(status_code=404, detail="No PDF is loaded.")
+    try:
+        document = pdfium.PdfDocument(content)
+        if page_number < 1 or page_number > len(document):
+            raise HTTPException(status_code=404, detail="Page does not exist.")
+        page = document[page_number - 1]
+        bitmap = page.render(scale=1.5)
+        image = bitmap.to_pil()
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG", optimize=True)
+        page.close()
+        document.close()
+        return Response(content=buffer.getvalue(), media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not render PDF page: {exc}") from exc
+
+
+@router.get("/document/outline")
+def get_document_outline():
+    """Return PDF bookmark entries when the source file contains them."""
+    content = document_service.current_pdf_bytes
+    if not content:
+        raise HTTPException(status_code=404, detail="No PDF is loaded.")
+    reader = pypdf.PdfReader(io.BytesIO(content))
+    entries = []
+
+    def visit(items, depth=0):
+        for item in items:
+            if isinstance(item, list):
+                visit(item, depth + 1)
+                continue
+            try:
+                page = reader.get_destination_page_number(item) + 1
+                entries.append({"title": str(item.title), "page": page, "depth": depth})
+            except Exception:
+                continue
+
+    visit(reader.outline)
+    return {"entries": entries}
+
+
+@router.get("/document/text/{page_number}")
+def get_document_page_text(page_number: int):
+    """Return extracted page text for the viewer's lightweight find-in-page."""
+    content = document_service.current_pdf_bytes
+    if not content:
+        raise HTTPException(status_code=404, detail="No PDF is loaded.")
+    reader = pypdf.PdfReader(io.BytesIO(content))
+    if page_number < 1 or page_number > len(reader.pages):
+        raise HTTPException(status_code=404, detail="Page does not exist.")
+    return {"page": page_number, "text": reader.pages[page_number - 1].extract_text() or ""}
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -76,13 +142,20 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
     try:
-        response = chat_service.process_chat(request.question)
+        response = chat_service.process_chat(request.question, retrieval_mode=request.retrieval_mode)
         return response
     except Exception as exc:
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred during chat processing: {str(exc)}",
         )
+
+
+@router.delete("/chat/history")
+def clear_chat_history():
+    """Clear the current in-memory conversation while keeping the active PDF."""
+    document_service.conversation_history = []
+    return {"cleared": True}
 
 
 @router.post("/evaluation/feedback")

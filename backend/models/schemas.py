@@ -2,7 +2,7 @@
 schemas.py — Pydantic models for the FastAPI backend.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -23,10 +23,13 @@ class DocumentStatus(BaseModel):
     filename: Optional[str] = None
     pages: int = 0
     chunks: int = 0
+    file_size_bytes: int = 0
+    uploaded_at: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, description="Natural language user question")
+    retrieval_mode: Literal["hybrid", "semantic", "exact"] = "hybrid"
 
 
 class Citation(BaseModel):
@@ -41,6 +44,9 @@ class Source(BaseModel):
     page: int
     text: str
     chunk_type: Optional[str] = "text"
+    bbox: Optional[List[float]] = None
+    page_width: Optional[float] = None
+    page_height: Optional[float] = None
 
 
 class LoopStatus(BaseModel):
@@ -51,6 +57,8 @@ class LoopStatus(BaseModel):
     original_query: Optional[str] = None
     resolved_query: Optional[str] = None
     route_strategy: Optional[str] = None
+    sub_queries: List[str] = Field(default_factory=list)
+    retrieved_pages: List[int] = Field(default_factory=list)
 
 
 class EvalMetrics(BaseModel):

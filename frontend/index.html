@@ -3,120 +3,106 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#f5f4f0" />
+  <meta name="theme-color" content="#f8fafc" />
   <title>Folio — Document workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=folio-20261008-2" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=folio-3pane-20261009-2" />
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app-shell" id="app-shell">
     <aside class="sidebar" aria-label="Document workspace">
-      <a class="brand" href="/" aria-label="Folio home">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" fill="none"><path d="M8 4.75h10l6 6v16.5H8V4.75Z" stroke="currentColor" stroke-width="1.6"/><path d="M18 4.75v6h6M12 16h8M12 20h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </span>
-        <span class="brand-name">folio<span class="brand-period">.</span></span>
-      </a>
-
-      <div class="workspace-label">DOCUMENT WORKSPACE</div>
+      <div class="sidebar-brand-row">
+        <a class="brand" href="/" aria-label="Folio home">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M8 4.75h10l6 6v16.5H8V4.75Z" stroke="currentColor" stroke-width="1.7"/><path d="M18 4.75v6h6M12 16h8M12 20h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+          <span class="brand-name">folio<span>.</span></span>
+        </a>
+        <button id="collapse-sidebar" class="icon-button collapse-button" type="button" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 7 10l5.5 5.5M6 3.5v13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="system-status"><span id="health-dot" class="health-dot"></span><span id="health-label">Connecting to Folio</span></div>
 
       <section class="document-section" aria-labelledby="document-heading">
-        <div class="section-heading">
-          <h2 id="document-heading">Your document</h2>
-          <span class="live-indicator" title="Session storage is active"></span>
-        </div>
-
+        <div class="section-heading"><h2 id="document-heading">Document workspace</h2><button class="text-button" id="new-document-button" type="button">New PDF</button></div>
         <div id="doc-card" class="doc-card empty">
-          <span class="doc-file-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M6.75 3.75h7l4.5 4.5v12H6.75v-16.5Z" stroke="currentColor" stroke-width="1.4"/><path d="M13.75 3.75v4.5h4.5M9.5 13h6M9.5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          </span>
-          <span class="doc-info">
-            <strong id="doc-name">No document yet</strong>
-            <span id="doc-sub">Add a PDF to get started</span>
-          </span>
+          <span class="doc-file-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6.75 3.75h7l4.5 4.5v12H6.75v-16.5Z" stroke="currentColor" stroke-width="1.4"/><path d="M13.75 3.75v4.5h4.5M9.5 13h6M9.5 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          <span class="doc-info"><strong id="doc-name">No document yet</strong><span id="doc-sub">Add a PDF to get started</span></span>
+          <span id="doc-status-badge" class="doc-status-badge">Empty</span>
         </div>
-
-        <div id="doc-meta" class="doc-meta" style="display: none;">
-          <div class="meta-row"><span>Pages</span><strong id="meta-pages">0</strong></div>
-          <div class="meta-row"><span>Text segments</span><strong id="meta-chunks">0</strong></div>
+        <div id="doc-meta" class="doc-meta" hidden>
+          <div class="meta-row"><span>Pages</span><strong id="meta-pages">0</strong></div><div class="meta-row"><span>File size</span><strong id="meta-size">—</strong></div>
+          <div class="meta-row"><span>Text segments</span><strong id="meta-chunks">0</strong></div><div class="meta-row"><span>Added</span><strong id="meta-uploaded">—</strong></div>
         </div>
-
         <form id="upload-form" class="upload-form">
           <label for="pdf-file" class="upload-dropzone" id="upload-dropzone" tabindex="0">
-            <span class="upload-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5V4.75m0 0L8.25 8.5M12 4.75 15.75 8.5M5.75 14.75v4.5h12.5v-4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            <span class="upload-copy"><strong id="file-label-text">Choose a PDF</strong><span>or drop it here · up to 20 MB</span></span>
-            <span class="upload-browse">Browse</span>
+            <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5V4.75m0 0L8.25 8.5M12 4.75 15.75 8.5M5.75 14.75v4.5h12.5v-4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="upload-copy"><strong id="file-label-text">Drop a PDF here</strong><span>or browse files · up to 20 MB</span></span><span class="upload-browse">Browse</span>
           </label>
           <input type="file" id="pdf-file" accept="application/pdf,.pdf" />
-          <button type="submit" id="upload-btn" class="button button-primary" disabled>
-            <span>Index document</span>
-            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4.5 10h11m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+          <button type="submit" id="upload-btn" class="button button-primary" disabled><span>Index document</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4.5 10h11m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <p id="upload-status" class="status-msg" aria-live="polite"></p>
+          <div id="upload-progress" class="upload-progress" hidden><span></span></div>
         </form>
       </section>
 
-      <div class="sidebar-spacer"></div>
-
-      <section class="privacy-note" aria-label="Privacy information">
-        <span class="privacy-icon" aria-hidden="true">
-          <svg viewBox="0 0 20 20" fill="none"><path d="M10 2.75 16 5v4.5c0 3.55-2.52 6.25-6 7.75-3.48-1.5-6-4.2-6-7.75V5l6-2.25Z" stroke="currentColor" stroke-width="1.35"/><path d="m7.5 9.75 1.65 1.65 3.4-3.55" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
-        <span><strong>Private by design</strong><small>Your file stays in this session and is cleared when it ends.</small></span>
+      <section class="outline-section" aria-labelledby="outline-heading">
+        <div class="section-heading"><h2 id="outline-heading">Contents</h2><span id="outline-count" class="section-count"></span></div>
+        <div id="outline-list" class="outline-list"><p class="quiet-empty">PDF bookmarks will appear here.</p></div>
       </section>
+
+      <section class="index-card" id="index-card" aria-label="Search index state">
+        <div class="index-heading"><span class="index-pulse"></span><strong>Search index</strong><span class="index-memory">IN MEMORY</span></div>
+        <div class="index-track"><span></span><span></span><span></span></div>
+        <p id="index-copy">Waiting for a document</p>
+      </section>
+
+      <div class="sidebar-spacer"></div>
+      <section class="privacy-note"><span class="privacy-shield" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.75 16 5v4.5c0 3.55-2.52 6.25-6 7.75-3.48-1.5-6-4.2-6-7.75V5l6-2.25Z" stroke="currentColor" stroke-width="1.35"/><path d="m7.5 9.75 1.65 1.65 3.4-3.55" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong>Private by design</strong><small>Your PDF and index live in this server session.</small></span></section>
       <div class="sidebar-foot">FOLIO <span>·</span> DOCUMENT INTELLIGENCE</div>
     </aside>
 
-    <main class="main-panel">
-      <header class="topbar">
-        <div class="breadcrumbs"><span>Workspace</span><span class="crumb-divider">/</span><strong id="workspace-title">New conversation</strong></div>
-        <div class="topbar-meta"><span class="session-dot"></span> Session only <span class="topbar-divider"></span><span class="topbar-shortcut">PDF · Q&amp;A</span></div>
+    <div class="resize-handle resize-sidebar" data-resize="sidebar" role="separator" aria-label="Resize document sidebar" aria-orientation="vertical" tabindex="0"></div>
+
+    <main class="pdf-pane" id="pdf-pane" aria-label="PDF viewer">
+      <header class="pdf-topbar">
+        <div class="pdf-file-heading"><span class="pdf-mini-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M5 2.75h6l4 4v10.5H5V2.75Z" stroke="currentColor" stroke-width="1.2"/><path d="M11 2.75v4h4M7.5 10h5M7.5 12.75h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span id="pdf-title">PDF preview</span></div>
+        <div class="pdf-controls">
+          <div class="page-control"><button id="page-prev" class="icon-button compact" type="button" aria-label="Previous page"><svg viewBox="0 0 20 20" fill="none"><path d="m12 4.5-5.5 5.5 5.5 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><label class="sr-only" for="page-input">Page number</label><input id="page-input" type="number" min="1" value="1" disabled /><span class="page-of">of <strong id="page-total">—</strong></span><button id="page-next" class="icon-button compact" type="button" aria-label="Next page"><svg viewBox="0 0 20 20" fill="none"><path d="m8 4.5 5.5 5.5L8 15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+          <span class="control-divider"></span>
+          <div class="zoom-control"><button id="zoom-out" class="icon-button compact" type="button" aria-label="Zoom out">−</button><span id="zoom-value">100%</span><button id="zoom-in" class="icon-button compact" type="button" aria-label="Zoom in">+</button></div>
+          <button id="fit-width" class="toolbar-button" type="button">Fit width</button>
+          <span class="control-divider search-divider"></span>
+          <label class="pdf-search"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.75" cy="8.75" r="5.25" stroke="currentColor" stroke-width="1.4"/><path d="m12.5 12.5 3.75 3.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><input id="pdf-search-input" type="search" placeholder="Find in page" aria-label="Find text in current PDF page" /><span id="search-count">0 / 0</span></label>
+          <button id="toggle-boxes" class="toolbar-button toggle-active" type="button" aria-pressed="true">Boxes on</button>
+        </div>
+      </header>
+      <div class="pdf-scroll-region" id="pdf-scroll-region">
+        <div class="pdf-empty-state" id="pdf-empty-state"><div class="empty-document-mark"><svg viewBox="0 0 48 48" fill="none"><path d="M12 5.5h16l9 9v28H12v-37Z" stroke="currentColor" stroke-width="1.6"/><path d="M28 5.5v9h9M18 23h13M18 28h13M18 33h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><span class="empty-kicker">DOCUMENT CANVAS</span><h2>Your PDF, in context.</h2><p>Upload a document to read pages alongside grounded answers.</p></div>
+        <div class="pdf-page-wrap" id="pdf-page-wrap" hidden><img id="pdf-page-image" alt="Current PDF page" /><div id="bbox-overlay" class="bbox-overlay" aria-label="Citation highlight"></div></div>
+      </div>
+      <section class="excerpt-drawer" id="excerpt-drawer">
+        <button class="excerpt-toggle" id="excerpt-toggle" type="button" aria-expanded="false"><span class="drawer-grip"></span><span class="excerpt-toggle-copy"><strong>Source excerpt</strong><span id="excerpt-summary">Select a citation to inspect its passage</span></span><span class="drawer-chevron">⌃</span></button>
+        <div class="excerpt-content" id="excerpt-content" hidden><div class="excerpt-tabs"><span class="active">Reranked evidence</span><span id="excerpt-page-label">No citation selected</span></div><blockquote id="excerpt-text">Select a citation chip or source card to show its excerpt here.</blockquote><span id="excerpt-location" class="excerpt-location"></span></div>
+      </section>
+    </main>
+
+    <div class="resize-handle resize-chat" data-resize="chat" role="separator" aria-label="Resize assistant panel" aria-orientation="vertical" tabindex="0"></div>
+
+    <aside class="chat-pane" id="chat-pane" aria-label="Chat assistant">
+      <header class="assistant-header">
+        <div class="assistant-title-row"><div class="assistant-avatar">f<span>.</span></div><div><h1>Folio assistant</h1><span class="assistant-context">Chatting with <strong id="chat-document-title">no document</strong></span></div><span class="assistant-live" title="Assistant ready"></span></div>
+        <div class="assistant-toolbar"><label class="mode-select-wrap"><span>SEARCH MODE</span><select id="retrieval-mode" aria-label="Retrieval mode"><option value="hybrid">Hybrid search</option><option value="semantic">Semantic only</option><option value="exact">Exact match</option></select></label><details class="options-menu"><summary aria-label="Conversation options">•••</summary><div class="options-popover"><button id="export-chat" type="button">Export conversation</button><button id="clear-history" type="button">Clear history</button></div></details></div>
       </header>
 
-      <section class="conversation" aria-label="Document conversation">
-        <div class="conversation-heading">
-          <div class="heading-kicker"><span class="heading-line"></span> ASK YOUR DOCUMENT</div>
-          <h1>Make sense of<br /><em>the fine print.</em></h1>
-          <p class="heading-description">Ask a question in plain language. Folio finds the relevant passages and shows you where each answer comes from.</p>
-        </div>
+      <div class="assistant-onboarding" id="assistant-onboarding"><div class="onboarding-rule"></div><div><span>DOCUMENT Q&amp;A</span><h2>Find the detail.<br />Keep the context.</h2><p>Ask for a summary, compare sections, or look up an exact term.</p><div class="suggested-grid" id="suggestions-container"><button type="button" class="suggestion-card" data-question="Summarize the key points in this document."><span>01</span>Summarize the key points</button><button type="button" class="suggestion-card" data-question="What obligations should I pay attention to?"><span>02</span>Find key obligations</button><button type="button" class="suggestion-card" data-question="Compare the main risks across sections."><span>03</span>Compare risks by section</button><button type="button" class="suggestion-card" data-question="Find any important dates or deadlines."><span>04</span>Find dates and deadlines</button></div></div></div>
 
-        <div class="chat-history" id="chat-history" aria-live="polite">
-          <div class="welcome-message" id="welcome-message">
-            <span class="welcome-rule"></span>
-            <div class="welcome-copy">
-              <span class="welcome-eyebrow">A CLEARER WAY THROUGH DOCUMENTS</span>
-              <h2>Start with a question.</h2>
-              <p>Upload a contract, policy, or report. We’ll help you find the details that matter, with page references to check the source.</p>
-              <div class="welcome-points">
-                <span><i>01</i> Upload a PDF</span><span><i>02</i> Ask naturally</span><span><i>03</i> Check the source</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="chat-history" id="chat-history" aria-live="polite"></div>
+      <div id="suggestions-bar" class="suggestions-bar" hidden><span>You could ask</span><div id="followup-suggestions"></div></div>
+      <div class="composer-wrap"><form id="chat-form" class="chat-form"><label class="sr-only" for="query-input">Ask a question about your document</label><textarea id="query-input" rows="1" placeholder="Ask a question or request a comparison…" disabled></textarea><div class="composer-actions"><span id="composer-document-state">Upload a document to begin</span><button type="submit" id="send-btn" class="send-button" aria-label="Send question" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m0 0-5-5m5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></form><div class="composer-foot"><span>Answers cite the source pages.</span><span><kbd>↵</kbd> send <kbd>⇧ ↵</kbd> new line</span></div></div>
+    </aside>
 
-        <div id="suggestions-bar" class="suggestions-bar" style="display: none;">
-          <span class="suggestions-label">You could ask</span>
-          <div id="suggestions-container" class="suggestions-pills"></div>
-        </div>
-
-        <div class="composer-wrap">
-          <form id="chat-form" class="chat-form">
-            <label class="sr-only" for="query-input">Ask a question about your document</label>
-            <input type="text" id="query-input" placeholder="Ask about a clause, date, or obligation…" autocomplete="off" disabled />
-            <button type="submit" id="send-btn" class="send-button" aria-label="Send question" disabled>
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m0 0-5-5m5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </form>
-          <div class="composer-foot"><span>Answers are grounded in your uploaded document.</span><span><kbd>↵</kbd> to send</span></div>
-        </div>
-      </section>
-      <footer class="main-footer"><span>Folio can make mistakes. Confirm important details against the source.</span><span>BUILT FOR CLOSE READING</span></footer>
-    </main>
+    <nav class="mobile-switcher" aria-label="Workspace panels"><button type="button" data-panel="pdf-pane" class="active"><svg viewBox="0 0 20 20" fill="none"><path d="M5 2.75h6l4 4v10.5H5V2.75Z" stroke="currentColor" stroke-width="1.3"/><path d="M11 2.75v4h4" stroke="currentColor" stroke-width="1.3"/></svg>PDF canvas</button><button type="button" data-panel="chat-pane"><svg viewBox="0 0 20 20" fill="none"><path d="M3 4.5h14v10H9l-4 3v-3H3v-10Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Assistant</button></nav>
   </div>
-  <script src="app.js?v=folio-20261008-2"></script>
+  <script src="app.js?v=folio-3pane-20261009-2"></script>
 </body>
 </html>

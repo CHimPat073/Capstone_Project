@@ -50,7 +50,7 @@ def build_hybrid_retriever(
     )
 
 
-def retrieve(query: str, index: Any, k: int = 5) -> List[Document]:
+def retrieve(query: str, index: Any, k: int = 5, mode: str = "hybrid") -> List[Document]:
     """
     Execute hybrid retrieval for a query against a DocumentIndex.
 
@@ -70,13 +70,22 @@ def retrieve(query: str, index: Any, k: int = 5) -> List[Document]:
     if not query or not query.strip():
         return []
 
-    if not hasattr(index, "hybrid_retriever") or index.hybrid_retriever is None:
+    if mode not in {"hybrid", "semantic", "exact"}:
+        raise ValueError("mode must be 'hybrid', 'semantic', or 'exact'.")
+    retriever = {
+        "hybrid": getattr(index, "hybrid_retriever", None),
+        "semantic": getattr(index, "vector_retriever", None),
+        "exact": getattr(index, "bm25_retriever", None),
+    }[mode]
+    if retriever is None:
         raise ValueError("Index does not contain an active hybrid_retriever.")
 
     # EnsembleRetriever returns candidates ranked by fused RRF scores
-    all_results = index.hybrid_retriever.invoke(query)
+    all_results = retriever.invoke(query)
 
     # Slice to top-k
-    candidate_count = min(len(all_results), max(k * 3, k))
+    candidate_count = min(len(all_results), max(k * 3, k)) if mode == "hybrid" else min(len(all_results), k)
     reranker = getattr(index, "reranker", None)
-    return rerank_documents(query, all_results[:candidate_count], k, reranker=reranker)
+    if mode == "hybrid":
+        return rerank_documents(query, all_results[:candidate_count], k, reranker=reranker)
+    return all_results[:k]

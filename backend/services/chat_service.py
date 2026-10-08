@@ -3,6 +3,7 @@ chat_service.py — Connects the API to the existing LangGraph reasoning loop.
 Reuses existing app.reasoning.agent_graph and app.reasoning.llm_client modules.
 """
 
+import json
 import re
 import uuid
 from typing import Any, Dict, List, Optional
@@ -35,7 +36,7 @@ OUT_OF_DOMAIN_PATTERNS = [
 
 
 class ChatService:
-    def process_chat(self, question: str) -> ChatResponse:
+    def process_chat(self, question: str, retrieval_mode: str = "hybrid") -> ChatResponse:
         """
         Processes a user question through the existing LangGraph RAG pipeline.
         Classifies status into:
@@ -126,6 +127,7 @@ class ChatService:
             index,
             q_clean,
             conversation_history=recent_history,
+            retrieval_mode=retrieval_mode,
         )
 
         answer_text = result["answer"]
@@ -150,6 +152,9 @@ class ChatService:
                 page=doc.metadata.get("page_num", 1),
                 text=doc.page_content.strip()[:280] + ("..." if len(doc.page_content.strip()) > 280 else ""),
                 chunk_type=doc.metadata.get("chunk_type", "text"),
+                bbox=_parse_bbox(doc.metadata.get("bbox_json")),
+                page_width=doc.metadata.get("page_width"),
+                page_height=doc.metadata.get("page_height"),
             )
             for doc in raw_sources[:5]
         ]
@@ -162,7 +167,9 @@ class ChatService:
             grounding_passed=is_grounded,
             original_query=q_clean,
             resolved_query=resolved_query,
-            route_strategy=route.strategy,
+            route_strategy=result.get("route_strategy", route.strategy),
+            sub_queries=result.get("sub_queries", []),
+            retrieved_pages=result.get("retrieved_pages", []),
         )
 
         # Detect out-of-domain refusal from LLM/agent
@@ -259,3 +266,11 @@ class ChatService:
 
 
 chat_service = ChatService()
+
+
+def _parse_bbox(value: Optional[str]) -> Optional[List[float]]:
+    try:
+        parsed = json.loads(value) if value else None
+        return parsed if isinstance(parsed, list) and len(parsed) == 4 else None
+    except (TypeError, ValueError):
+        return None

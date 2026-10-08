@@ -4,6 +4,7 @@ Reuses existing app.ingestion modules without duplicating code.
 """
 
 import io
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 import pypdf
 
@@ -20,6 +21,9 @@ class DocumentService:
         self.current_index: Optional[DocumentIndex] = None
         self.current_filename: Optional[str] = None
         self.conversation_history: list = []
+        self.current_pdf_bytes: Optional[bytes] = None
+        self.file_size_bytes: int = 0
+        self.uploaded_at: Optional[str] = None
 
     def validate_pdf(self, pdf_bytes: bytes) -> Tuple[bool, str]:
         """
@@ -56,7 +60,13 @@ class DocumentService:
         # Store only the current document state
         self.current_index = index
         self.current_filename = filename
+        self.current_pdf_bytes = pdf_bytes
+        self.file_size_bytes = len(pdf_bytes)
+        self.uploaded_at = datetime.now(timezone.utc).isoformat()
         self.conversation_history = []
+        self.current_pdf_bytes = None
+        self.file_size_bytes = 0
+        self.uploaded_at = None
 
         return index
 
@@ -73,12 +83,16 @@ class DocumentService:
                 "filename": self.current_filename,
                 "pages": self.current_index.num_pages,
                 "chunks": len(self.current_index.child_chunks),
+                "file_size_bytes": self.file_size_bytes,
+                "uploaded_at": self.uploaded_at,
             }
         return {
             "document_loaded": False,
             "filename": None,
             "pages": 0,
             "chunks": 0,
+            "file_size_bytes": 0,
+            "uploaded_at": None,
         }
 
 
