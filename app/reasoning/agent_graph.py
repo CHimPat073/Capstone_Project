@@ -66,6 +66,37 @@ def _format_context(docs: List[Document]) -> str:
     return "\n\n".join(formatted_pieces)
 
 
+def _is_overview_query(question: str) -> bool:
+    """Detect requests that need representative coverage across the PDF."""
+    return bool(re.search(
+        r"\b(summar(?:y|ize|ise)|overview|main points|key points|highlights|entire document|whole document)\b",
+        question or "",
+        re.IGNORECASE,
+    ))
+
+
+def _representative_chunks(index: Any, limit: int = 8) -> List[Document]:
+    """Choose text chunks spread across the document for overview questions."""
+    chunks = [doc for doc in getattr(index, "child_chunks", [])
+              if doc.metadata.get("chunk_type", "text") == "text" and doc.page_content.strip()]
+    by_page: Dict[int, List[Document]] = {}
+    for doc in chunks:
+        try:
+            page = int(doc.metadata.get("page_num", 0))
+        except (TypeError, ValueError):
+            continue
+        by_page.setdefault(page, []).append(doc)
+    pages = sorted(by_page)
+    if not pages:
+        return chunks[:limit]
+    if len(pages) <= limit:
+        chosen_pages = pages
+    else:
+        chosen_pages = sorted({pages[round(i * (len(pages) - 1) / (limit - 1))]
+                               for i in range(limit)})
+    return [max(by_page[page], key=lambda doc: len(doc.page_content)) for page in chosen_pages]
+
+
 def _format_conversation_history(history: List[Dict[str, str]]) -> str:
     """Format recent messages (up to last 4) for context resolution."""
     if not history:
@@ -132,6 +163,12 @@ def build_agent_graph(index: Any, llm: Optional[LLMClient] = None, retrieval_mod
     def retrieve_node(state: AgentState) -> Dict[str, Any]:
         query = state["current_query"]
         print(f"\n[RETRIEVE] Query: \"{query}\"")
+        if _is_overview_query(state["query"]):
+            chunks = _representative_chunks(index)
+            pages = sorted({int(doc.metadata["page_num"]) for doc in chunks
+                            if str(doc.metadata.get("page_num", "")).isdigit()})
+            print(f"[RETRIEVE] Selected {len(chunks)} representative chunks for document overview.")
+            return {"retrieved_chunks": chunks, "sub_queries": [query], "retrieved_pages": pages}
         route = route_query(query)
         queries = [query]
         if route.requires_multiple_hops:

@@ -186,8 +186,20 @@ class LLMClient:
             question = q_match.group(1).lower() if q_match else ""
             context = c_match.group(1).lower() if c_match else ""
 
+            overview_query = bool(re.search(
+                r"\b(summar(?:y|ize|ise)|overview|main points|key points|highlights|entire document|whole document)\b",
+                question,
+            ))
+            if overview_query and len(context.strip()) >= 80:
+                return {
+                    "sufficient": True,
+                    "reason": "Representative document sections are available for an overview.",
+                }
+
             # Extract significant words (len >= 4)
-            q_words = [w for w in re.findall(r"\b\w+\b", question) if len(w) >= 4 and w not in {"what", "which", "where", "when", "does", "have", "with", "from"}]
+            q_words = [w for w in re.findall(r"\b\w+\b", question) if len(w) >= 4 and w not in {
+                "what", "which", "where", "when", "does", "have", "with", "from", "this", "that", "document",
+            }]
             found = sum(1 for w in q_words if w in context)
             sufficient = (found >= max(1, len(q_words) * 0.4)) if q_words else True
             reason = "Key terms from query found in retrieved text." if sufficient else "Insufficient overlap with query terms."
@@ -219,7 +231,9 @@ class LLMClient:
 
         # Generator fallback
         if "document intelligence assistant" in system_prompt.lower():
+            q_match = re.search(r"Question:\s*(.*?)\n", user_prompt, re.DOTALL | re.IGNORECASE)
             c_match = re.search(r"Context:\s*(.*)", user_prompt, re.DOTALL | re.IGNORECASE)
+            question = q_match.group(1).strip() if q_match else ""
             context = c_match.group(1) if c_match else ""
 
             # Parse pages from [Page X] markers
@@ -230,12 +244,41 @@ class LLMClient:
                     "citations": [],
                 }
 
-            # Build answer from first matching page
-            first_page, text = pages[0]
-            first_sentence = text.strip().replace("\n", " ")[:200]
+            cleaned_pages = []
+            for page, text in pages:
+                cleaned = self._clean_context_text(text)
+                if cleaned:
+                    cleaned_pages.append((int(page), cleaned))
+            if not cleaned_pages:
+                return {
+                    "answer": "I could not extract readable text from the retrieved passages.",
+                    "citations": [],
+                    "follow_up_suggestions": [],
+                }
+
+            overview_query = bool(re.search(
+                r"\b(summar(?:y|ize|ise)|overview|main points|key points|highlights|entire document|whole document)\b",
+                question,
+                re.IGNORECASE,
+            ))
+            selected = self._select_evidence(question, cleaned_pages, limit=6 if overview_query else 3)
+            if overview_query:
+                answer = "Key points from the document:\n" + "\n".join(
+                    f"- {sentence} [Page {page}]" for page, sentence in selected
+                )
+            else:
+                answer = "Based on the retrieved passages:\n" + "\n".join(
+                    f"- {sentence} [Page {page}]" for page, sentence in selected
+                )
             return {
-                "answer": f"Based on the document, {first_sentence} [Page {first_page}]",
-                "citations": [{"page": int(first_page), "text": first_sentence[:100]}],
+                "answer": answer,
+                "citations": [
+                    {"page": page, "text": sentence[:180]} for page, sentence in selected
+                ],
+                "follow_up_suggestions": [
+                    "Which section should I explain in more detail?",
+                    "What dates, names, or results are mentioned?",
+                ],
             }
 
         # Hallucination check fallback
@@ -254,3 +297,59 @@ class LLMClient:
             return {"grounded": True, "unsupported_claims": []}
 
         return {}
+
+    @staticmethod
+    def _clean_context_text(text: str) -> str:
+        """Remove table syntax and extraction artifacts before composing fallback answers."""
+        lines = []
+        for raw_line in (text or "").splitlines():
+            line = re.sub(r"\s+", " ", raw_line).strip(" |\t")
+            if not line or re.fullmatch(r"[-:|\s]+", raw_line):
+                continue
+            if re.fullmatch(r"(?:\d+\s*\|\s*)+\d*", line):
+                continue
+            line = line.replace("|", "; ")
+            if sum(character.isalpha() for character in line) < 8:
+                continue
+            lines.append(line)
+        return " ".join(lines)
+
+    @staticmethod
+    def _select_evidence(question: str, pages: List[tuple], limit: int) -> List[tuple]:
+        """Select readable, non-duplicate sentences, favoring query terms and page coverage."""
+        stop_words = {
+            "what", "which", "where", "when", "does", "have", "with", "from", "this", "that",
+            "document", "summarize", "summary", "main", "points", "about", "into", "were", "been",
+        }
+        query_terms = {word for word in re.findall(r"\b[a-zA-Z0-9]+\b", question.lower())
+                       if len(word) >= 4 and word not in stop_words}
+        candidates = []
+        seen = set()
+        for page, text in pages:
+            parts = re.split(r"(?<=[.!?])\s+|\s{2,}", text)
+            if len(parts) == 1 and len(text) > 220:
+                parts = [text[index:index + 220] for index in range(0, len(text), 220)]
+            for position, part in enumerate(parts):
+                sentence = re.sub(r"\s+", " ", part).strip(" -:;,.|")
+                if len(sentence) < 35:
+                    continue
+                sentence = sentence[:260].rsplit(" ", 1)[0] if len(sentence) > 260 else sentence
+                key = re.sub(r"\W+", "", sentence.lower())[:120]
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                terms = set(re.findall(r"\b[a-zA-Z0-9]+\b", sentence.lower()))
+                overlap = len(query_terms & terms)
+                score = overlap * 10 + min(len(sentence), 180) / 180 - position * .02
+                candidates.append((score, page, sentence))
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        chosen = []
+        used_pages = set()
+        for _, page, sentence in candidates:
+            if page in used_pages and len(used_pages) < min(limit, len(pages)):
+                continue
+            chosen.append((page, sentence))
+            used_pages.add(page)
+            if len(chosen) == limit:
+                break
+        return chosen or [(pages[0][0], pages[0][1][:220])]
