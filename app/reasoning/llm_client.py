@@ -200,7 +200,20 @@ class LLMClient:
             q_words = [w for w in re.findall(r"\b\w+\b", question) if len(w) >= 4 and w not in {
                 "what", "which", "where", "when", "does", "have", "with", "from", "this", "that", "document",
             }]
-            found = sum(1 for w in q_words if w in context)
+            # Treat common paraphrases as equivalent during the offline grade
+            # step. Without this, a valid question such as "what was it
+            # intended to achieve" is rejected even when the context contains
+            # a clearly labelled objectives section.
+            if re.search(r"\b(intended to achieve|aim|purpose|objective|goal)\b", question):
+                q_words.extend(["objectives", "purpose", "goals"])
+            def _word_in_context(w: str, ctx: str) -> bool:
+                if w in ctx:
+                    return True
+                stem = re.sub(r"(ing|tion|tions|ment|ments|ies|es|ed|s)$", "", w.lower())
+                return len(stem) >= 3 and stem in ctx
+
+            ctx_lower = context.lower()
+            found = sum(1 for w in q_words if _word_in_context(w.lower(), ctx_lower))
             sufficient = (found >= max(1, len(q_words) * 0.4)) if q_words else True
             reason = "Key terms from query found in retrieved text." if sufficient else "Insufficient overlap with query terms."
             return {"sufficient": sufficient, "reason": reason}
@@ -261,8 +274,31 @@ class LLMClient:
                 question,
                 re.IGNORECASE,
             ))
-            selected = self._select_evidence(question, cleaned_pages, limit=6 if overview_query else 3)
-            if overview_query:
+            comparison = re.search(
+                r"\b(?:compare|comparison of|difference between)\s+(.+?)\s+(?:and|with|to|versus|vs\.?)\s+(.+?)(?:\?|$)",
+                question,
+                re.IGNORECASE,
+            )
+            if comparison:
+                left, right = (part.strip(" .,?") for part in comparison.groups())
+                left_evidence = self._select_evidence(left, cleaned_pages, limit=2)
+                right_evidence = self._select_evidence(right, cleaned_pages, limit=2)
+                selected = []
+                for row in left_evidence + right_evidence:
+                    if row not in selected:
+                        selected.append(row)
+                answer = (
+                    f"{left.capitalize()}:\n" + "\n".join(
+                        f"- {sentence} [Page {page}]" for page, sentence in left_evidence
+                    ) + f"\n\n{right.capitalize()}:\n" + "\n".join(
+                        f"- {sentence} [Page {page}]" for page, sentence in right_evidence
+                    )
+                )
+            else:
+                selected = self._select_evidence(question, cleaned_pages, limit=6 if overview_query else 3)
+            if comparison:
+                pass
+            elif overview_query:
                 answer = "Key points from the document:\n" + "\n".join(
                     f"- {sentence} [Page {page}]" for page, sentence in selected
                 )
@@ -303,7 +339,8 @@ class LLMClient:
         """Remove table syntax and extraction artifacts before composing fallback answers."""
         lines = []
         for raw_line in (text or "").splitlines():
-            line = re.sub(r"\s+", " ", raw_line).strip(" |\t")
+            line = re.sub(r"[\x00-\x1f\x7f]+", " ", raw_line)
+            line = re.sub(r"\s+", " ", line).strip(" |\t")
             if not line or re.fullmatch(r"[-:|\s]+", raw_line):
                 continue
             if re.fullmatch(r"(?:\d+\s*\|\s*)+\d*", line):
@@ -341,6 +378,14 @@ class LLMClient:
                 terms = set(re.findall(r"\b[a-zA-Z0-9]+\b", sentence.lower()))
                 overlap = len(query_terms & terms)
                 score = overlap * 10 + min(len(sentence), 180) / 180 - position * .02
+                if re.search(
+                    r"\b(report submitted|award of degree|certificate|acknowledgement|table of contents|"
+                    r"index|contents|requirements\s+\d+\.\d+|source code|system architecture|"
+                    r"output\s*&\s*results|conclusion\s*&\s*recommendations)\b",
+                    sentence,
+                    re.I,
+                ):
+                    score -= 14
                 candidates.append((score, page, sentence))
         candidates.sort(key=lambda item: item[0], reverse=True)
         chosen = []

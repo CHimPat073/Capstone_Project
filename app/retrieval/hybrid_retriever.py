@@ -19,6 +19,7 @@ Configuration:
     - Final retrieved top-k: 5
 """
 
+import re
 from typing import Any, List, Sequence
 from langchain_core.documents import Document
 from langchain_classic.retrievers import EnsembleRetriever
@@ -80,8 +81,18 @@ def retrieve(query: str, index: Any, k: int = 5, mode: str = "hybrid") -> List[D
     if retriever is None:
         raise ValueError("Index does not contain an active hybrid_retriever.")
 
+    # Dense models can miss short paraphrases such as "intended to achieve".
+    # Add a small, deterministic intent expansion while keeping the selected
+    # retrieval mode intact. This improves semantic recall without changing the
+    # user's requested exact or hybrid behavior.
+    search_query = query
+    if mode == "semantic":
+        lowered = query.lower()
+        if re.search(r"\b(intended to achieve|aim|purpose|objective|goal)\b", lowered):
+            search_query = f"{query} objectives goals purpose scope"
+
     # EnsembleRetriever returns candidates ranked by fused RRF scores
-    all_results = retriever.invoke(query)
+    all_results = retriever.invoke(search_query)
 
     # Slice to top-k
     candidate_count = min(len(all_results), max(k * 3, k)) if mode == "hybrid" else min(len(all_results), k)
